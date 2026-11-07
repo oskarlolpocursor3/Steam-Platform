@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
     // Default: Launch Steam Graphical User Interface (GUI)
     steam::core::UserSession userSession(1001, "ØSKARŁØŁPØ⁴²", "token_sec_9948214fa8");
     steam::ui::SteamMainWindow mainWindow(storage, downloadManager, launcher, userSession);
-    if (!mainWindow.create(1180, 740)) {
+    if (!mainWindow.create(1360, 840)) {
         std::cerr << "Failed to create Steam MainWindow. Falling back to CLI mode." << std::endl;
         runCliMode(storage, downloadManager, launcher);
         return 1;

@@ -36,6 +36,37 @@ long long extractJsonInt(const std::string& json, const std::string& key) {
     return 0;
 }
 
+std::filesystem::path resolveUiPath(std::filesystem::path& outRootDir) {
+    wchar_t exeBuffer[MAX_PATH];
+    GetModuleFileNameW(nullptr, exeBuffer, MAX_PATH);
+    std::filesystem::path exeDir = std::filesystem::path(exeBuffer).parent_path();
+
+    std::vector<std::filesystem::path> searchDirs = {
+        exeDir,                                           // build/bin/Release
+        exeDir / "ui_web",                               // build/bin/Release/ui_web
+        exeDir.parent_path(),                            // build/bin
+        exeDir.parent_path().parent_path(),              // build
+        exeDir.parent_path().parent_path().parent_path(),// project root
+        std::filesystem::current_path(),
+        std::filesystem::current_path() / "steam",
+        std::filesystem::path("C:/Users/govno/Desktop/zadaniy/steam")
+    };
+
+    for (const auto& dir : searchDirs) {
+        std::filesystem::path candidate1 = dir / "index.html";
+        if (std::filesystem::exists(candidate1)) {
+            outRootDir = dir.parent_path();
+            return std::filesystem::canonical(candidate1);
+        }
+        std::filesystem::path candidate2 = dir / "ui_web" / "index.html";
+        if (std::filesystem::exists(candidate2)) {
+            outRootDir = dir;
+            return std::filesystem::canonical(candidate2);
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 SteamMainWindow::SteamMainWindow(
@@ -214,9 +245,16 @@ void SteamMainWindow::initWebView() {
                             m_webViewController->put_IsVisible(TRUE);
                             resizeWebView();
 
-                            // Navigate to local index.html
-                            std::filesystem::path htmlPath = std::filesystem::current_path() / "ui_web" / "index.html";
-                            if (std::filesystem::exists(htmlPath)) {
+                            // Navigate to local index.html with multi-path fallback
+                            std::filesystem::path rootDir;
+                            std::filesystem::path htmlPath = resolveUiPath(rootDir);
+                            if (!rootDir.empty()) {
+                                std::error_code ec;
+                                std::filesystem::current_path(rootDir, ec);
+                                m_steamRootDir = rootDir;
+                            }
+
+                            if (!htmlPath.empty() && std::filesystem::exists(htmlPath)) {
                                 std::wstring navUri = L"file:///" + htmlPath.wstring();
                                 std::replace(navUri.begin(), navUri.end(), L'\\', L'/');
                                 m_webView->Navigate(navUri.c_str());

@@ -64,6 +64,7 @@ private:
     std::shared_ptr<steam::launcher::IProcessLauncher> m_processLauncher;
     steam::core::UserSession m_session;
 
+    std::filesystem::path m_steamRootDir;
     std::atomic<bool> m_isGameRunning{false};
     steam::core::AppId m_runningAppId{0};
     std::thread m_processMonitorThread;

@@ -55,5 +55,8 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/webview2/build/native/x64/WebView2Loader.dll"
         "$<TARGET_FILE_DIR:steam_client>"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui_web"
+        "$<TARGET_FILE_DIR:steam_client>/ui_web"
     )
 endif()
