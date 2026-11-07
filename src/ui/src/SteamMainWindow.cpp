@@ -6,6 +6,7 @@
 #include <chrono>
 #include <algorithm>
 #include <regex>
+#include <thread>
 #include <dwmapi.h>
 
 #pragma comment(lib, "dwmapi.lib")
@@ -36,13 +37,17 @@ long long extractJsonInt(const std::string& json, const std::string& key) {
     return 0;
 }
 
-std::filesystem::path resolveUiPath(std::filesystem::path& outRootDir) {
+std::filesystem::path getExeDirectory() {
     wchar_t exeBuffer[MAX_PATH];
     GetModuleFileNameW(nullptr, exeBuffer, MAX_PATH);
-    std::filesystem::path exeDir = std::filesystem::path(exeBuffer).parent_path();
+    return std::filesystem::path(exeBuffer).parent_path();
+}
+
+std::filesystem::path resolveUiPath(std::filesystem::path& outRootDir) {
+    std::filesystem::path exeDir = getExeDirectory();
 
     std::vector<std::filesystem::path> searchDirs = {
-        exeDir,                                           // build/bin/Release
+        exeDir,                                           // build/bin/Release or dist
         exeDir / "ui_web",                               // build/bin/Release/ui_web
         exeDir.parent_path(),                            // build/bin
         exeDir.parent_path().parent_path(),              // build
@@ -67,6 +72,66 @@ std::filesystem::path resolveUiPath(std::filesystem::path& outRootDir) {
     return {};
 }
 
+std::filesystem::path resolveGameExecutable(long long gameId, const std::filesystem::path& steamRoot) {
+    std::filesystem::path appDir = getExeDirectory();
+
+    std::vector<std::filesystem::path> baseDirs = {
+        appDir,
+        steamRoot,
+        std::filesystem::current_path(),
+        std::filesystem::path("C:/Users/govno/Desktop/zadaniy/steam"),
+        std::filesystem::path("C:/Users/govno/Desktop/zadaniy")
+    };
+
+    if (gameId == 570) { // CS2 Demake
+        std::vector<std::filesystem::path> candidates;
+        for (const auto& b : baseDirs) {
+            candidates.push_back(b / "steamapps" / "common" / "CS2Source" / "cs2.exe");
+            candidates.push_back(b / "steamapps" / "common" / "CS2Source" / "CS2WinFormsDemo.exe");
+            candidates.push_back(b / "CS2WinFormsDemo" / "bin" / "Release" / "publish" / "CS2WinFormsDemo.exe");
+            candidates.push_back(b / "CS2WinFormsDemo" / "bin" / "Release" / "net9.0-windows" / "CS2WinFormsDemo.exe");
+            candidates.push_back(b / "CS2WinFormsDemo" / "bin" / "Debug" / "net9.0-windows" / "CS2WinFormsDemo.exe");
+            candidates.push_back(b / "SteamSharp" / "Cs2Game" / "bin" / "Debug" / "net9.0-windows" / "cs2.exe");
+        }
+        for (const auto& c : candidates) {
+            if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
+        }
+    }
+    else if (gameId == 1992) { // Mario Kart C#
+        std::vector<std::filesystem::path> candidates;
+        for (const auto& b : baseDirs) {
+            candidates.push_back(b / "steamapps" / "common" / "MarioKartCS" / "MarioKartCS.exe");
+            candidates.push_back(b / "MarioKartCS" / "MarioKartCS.exe");
+            candidates.push_back(b / "MarioKart_Standalone" / "MarioKartCS.exe");
+        }
+        for (const auto& c : candidates) {
+            if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
+        }
+    }
+    else if (gameId == 101) { // D&D Console RPG
+        std::vector<std::filesystem::path> candidates;
+        for (const auto& b : baseDirs) {
+            candidates.push_back(b / "games" / "Console-DnD" / "game.exe");
+            candidates.push_back(b / "steamapps" / "common" / "Console-DnD" / "game.exe");
+        }
+        for (const auto& c : candidates) {
+            if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
+        }
+    }
+    else if (gameId == 70) { // Half-Life 3 Prototype
+        std::vector<std::filesystem::path> candidates;
+        for (const auto& b : baseDirs) {
+            candidates.push_back(b / "steamapps" / "common" / "HalfLife3" / "hl3_game.exe");
+            candidates.push_back(b / "SteamSharp" / "HalfLife3Game" / "bin" / "Debug" / "net9.0-windows" / "HalfLife3Game.exe");
+        }
+        for (const auto& c : candidates) {
+            if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
+        }
+    }
+
+    return {};
+}
+
 } // namespace
 
 SteamMainWindow::SteamMainWindow(
@@ -85,7 +150,7 @@ SteamMainWindow::SteamMainWindow(
 SteamMainWindow::~SteamMainWindow() {
     m_stopMonitor = true;
     if (m_processMonitorThread.joinable()) {
-        m_processMonitorThread.join();
+        m_processMonitorThread.detach();
     }
 
 #ifdef _WIN32
@@ -259,7 +324,7 @@ void SteamMainWindow::initWebView() {
                                 std::replace(navUri.begin(), navUri.end(), L'\\', L'/');
                                 m_webView->Navigate(navUri.c_str());
                             } else {
-                                m_webView->NavigateToString(L"<html><body style='background:#0e1218;color:#fff;'><h1>UI Not Found</h1><p>Missing ui_web/index.html</p></body></html>");
+                                m_webView->NavigateToString(L"<html><body style='background:#171a21;color:#fff;'><h1>UI Not Found</h1><p>Missing ui_web/index.html</p></body></html>");
                             }
 
                             return S_OK;
@@ -290,16 +355,19 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
     long long gameId = extractJsonInt(jsonString, "gameId");
 
     if (action == "ready") {
-        // Check which games are actually installed on disk
+        // Check which games actually have executable files available
         std::vector<int> installed;
-        if (std::filesystem::exists("steamapps/common/CS2Source/cs2.exe")) {
+        if (!resolveGameExecutable(570, m_steamRootDir).empty()) {
             installed.push_back(570);
         }
-        if (std::filesystem::exists("steamapps/common/MarioKartCS/MarioKartCS.exe")) {
+        if (!resolveGameExecutable(1992, m_steamRootDir).empty()) {
             installed.push_back(1992);
         }
-        if (std::filesystem::exists("games/Console-DnD/game.exe")) {
+        if (!resolveGameExecutable(101, m_steamRootDir).empty()) {
             installed.push_back(101);
+        }
+        if (!resolveGameExecutable(70, m_steamRootDir).empty()) {
+            installed.push_back(70);
         }
 
         std::ostringstream ss;
@@ -323,25 +391,27 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
     else if (action == "install_game") {
         std::cout << "[INSTALLER] Triggering installation for game ID: " << gameId << std::endl;
         
-        // Launch installation thread to extract or download game
+        // Launch installation thread to extract or download game without blocking UI
         std::thread([this, gameId]() {
-            // Emulate progress steps
             for (int p = 15; p <= 85; p += 25) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
                 std::ostringstream prog;
                 prog << "{\"event\":\"download_progress\",\"gameId\":" << gameId << ",\"percent\":" << p << "}";
                 postMessageToWeb(prog.str());
             }
 
-            // Extract local zip if exists
+            std::filesystem::path appDir = getExeDirectory();
+            std::filesystem::path targetCommon = appDir / "steamapps" / "common";
+            std::filesystem::create_directories(targetCommon);
+
             std::filesystem::path zipPath;
             std::filesystem::path targetDir;
             if (gameId == 570) {
                 zipPath = "catalog/releases/CS2Source.zip";
-                targetDir = "steamapps/common/CS2Source";
+                targetDir = targetCommon / "CS2Source";
             } else if (gameId == 1992) {
                 zipPath = "catalog/releases/MarioKartCS.zip";
-                targetDir = "steamapps/common/MarioKartCS";
+                targetDir = targetCommon / "MarioKartCS";
             }
 
             if (std::filesystem::exists(zipPath)) {
@@ -350,7 +420,7 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
                 system(cmd.c_str());
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
             std::ostringstream done;
             done << "{\"event\":\"download_progress\",\"gameId\":" << gameId << ",\"percent\":100}";
             postMessageToWeb(done.str());
@@ -361,62 +431,56 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
         }).detach();
     }
     else if (action == "launch_game") {
-        std::cout << "[LAUNCHER] Launching game ID: " << gameId << std::endl;
+        std::cout << "[LAUNCHER] Launching game ID: " << gameId << " (asynchronously)" << std::endl;
 
-        steam::launcher::LaunchConfig config;
-        if (gameId == 570) {
-            config.executablePath = std::filesystem::current_path() / "steamapps" / "common" / "CS2Source" / "cs2.exe";
-            config.workingDirectory = config.executablePath.parent_path();
-        } else if (gameId == 1992) {
-            config.executablePath = std::filesystem::current_path() / "steamapps" / "common" / "MarioKartCS" / "MarioKartCS.exe";
-            config.workingDirectory = config.executablePath.parent_path();
-        } else if (gameId == 101) {
-            config.executablePath = std::filesystem::current_path() / "games" / "Console-DnD" / "game.exe";
-            config.workingDirectory = config.executablePath.parent_path();
-        }
-
-        if (!std::filesystem::exists(config.executablePath)) {
-            std::cerr << "[LAUNCHER ERROR] Executable not found at " << config.executablePath << std::endl;
-            return;
-        }
-
-        bool ok = m_processLauncher->launch(static_cast<steam::core::AppId>(gameId), config);
-        if (ok) {
-            m_isGameRunning = true;
-            m_runningAppId = static_cast<steam::core::AppId>(gameId);
-
-            std::ostringstream ss;
-            ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":true}";
-            postMessageToWeb(ss.str());
-
-            // Launch monitor thread to catch process termination
-            if (m_processMonitorThread.joinable()) {
-                m_stopMonitor = true;
-                m_processMonitorThread.join();
+        // Async execution to prevent UI freezing
+        std::thread([this, gameId]() {
+            std::filesystem::path exePath = resolveGameExecutable(gameId, m_steamRootDir);
+            if (exePath.empty() || !std::filesystem::exists(exePath)) {
+                std::cerr << "[LAUNCHER ERROR] Executable not found on disk for game ID: " << gameId << std::endl;
+                std::ostringstream err;
+                err << "{\"event\":\"error\",\"message\":\"Исполняемый файл игры не найден на диске!\"}";
+                postMessageToWeb(err.str());
+                return;
             }
-            m_stopMonitor = false;
 
-            m_processMonitorThread = std::thread([this, gameId]() {
-                while (!m_stopMonitor && m_processLauncher->isRunning(static_cast<steam::core::AppId>(gameId))) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            steam::launcher::LaunchConfig config;
+            config.executablePath = exePath;
+            config.workingDirectory = exePath.parent_path();
+
+            std::cout << "[LAUNCHER] Starting process: " << exePath.string() << std::endl;
+            bool ok = m_processLauncher->launch(static_cast<steam::core::AppId>(gameId), config);
+            if (ok) {
+                m_isGameRunning = true;
+                m_runningAppId = static_cast<steam::core::AppId>(gameId);
+
+                std::ostringstream ss;
+                ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":true}";
+                postMessageToWeb(ss.str());
+
+                // Asynchronously monitor until process exits
+                while (m_processLauncher->isRunning(static_cast<steam::core::AppId>(gameId))) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(300));
                 }
 
-                if (!m_stopMonitor) {
-                    m_isGameRunning = false;
-                    std::ostringstream stopped;
-                    stopped << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
-                    postMessageToWeb(stopped.str());
-                }
-            });
-        }
+                m_isGameRunning = false;
+                std::ostringstream stopped;
+                stopped << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
+                postMessageToWeb(stopped.str());
+            } else {
+                std::cerr << "[LAUNCHER] Failed to create process for game: " << gameId << std::endl;
+            }
+        }).detach();
     }
     else if (action == "stop_game") {
         std::cout << "[LAUNCHER] Stopping game ID: " << gameId << std::endl;
-        m_processLauncher->terminate(static_cast<steam::core::AppId>(gameId));
-        m_isGameRunning = false;
-        std::ostringstream ss;
-        ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
-        postMessageToWeb(ss.str());
+        std::thread([this, gameId]() {
+            m_processLauncher->terminate(static_cast<steam::core::AppId>(gameId));
+            m_isGameRunning = false;
+            std::ostringstream ss;
+            ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
+            postMessageToWeb(ss.str());
+        }).detach();
     }
 }
 

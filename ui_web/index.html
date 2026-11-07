@@ -3,288 +3,362 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Steam Next-Gen</title>
+  <title>Steam • by zmanovskij</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="app" class="app-container">
-    <!-- Top Quiet Chrome Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <div class="logo-wrapper">
-          <img src="assets/logo.png" alt="Steam Logo" class="brand-neon-logo">
-        </div>
-        
-        <nav class="nav-tabs">
-          <button class="nav-tab active" data-tab="store" id="tab-store">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-            Магазин
+  <div id="steam-root" class="steam-client">
+    
+    <!-- 1. STEAM TOP CHROME (Аутентичная шапка Steam) -->
+    <header class="steam-topbar">
+      <div class="topbar-left">
+        <!-- History Navigation Arrows -->
+        <div class="nav-history">
+          <button class="nav-arrow-btn" id="nav-back-btn" title="Назад">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <button class="nav-tab" data-tab="library" id="tab-library">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-            Библиотека
-            <span class="tab-badge" id="library-count-badge">0</span>
+          <button class="nav-arrow-btn" id="nav-forward-btn" title="Вперед">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- Neon Steam Logo -->
+        <div class="brand-logo-container" id="brand-logo-btn" title="Steam by zmanovskij">
+          <img src="assets/logo.png" alt="Steam by zmanovskij" class="steam-neon-logo">
+        </div>
+
+        <!-- Steam Main Menu Tabs (МАГАЗИН / БИБЛИОТЕКА) -->
+        <nav class="steam-main-nav">
+          <button class="steam-nav-tab active" data-tab="store" id="tab-store">
+            МАГАЗИН
+          </button>
+          <button class="steam-nav-tab" data-tab="library" id="tab-library">
+            БИБЛИОТЕКА
+            <span class="library-badge" id="lib-count-badge">4</span>
           </button>
         </nav>
       </div>
 
-      <div class="header-right">
-        <!-- Search Box -->
-        <div class="search-box">
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="search-input" placeholder="Поиск игр..." autocomplete="off">
-          <button class="search-clear" id="search-clear" style="display: none;">✕</button>
+      <div class="topbar-right">
+        <!-- Steam Wallet Pill -->
+        <div class="steam-wallet-badge" id="wallet-btn" title="Баланс кошелька Steam">
+          <span class="wallet-val" id="wallet-amount">75,31 руб.</span>
         </div>
 
-        <!-- User Profile Pill -->
-        <div class="profile-pill" id="profile-btn" title="Открыть профиль">
-          <div class="avatar-container">
-            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="profile-avatar-img" id="header-avatar-img">
-            <span class="status-indicator online"></span>
+        <!-- Notifications Bell -->
+        <div class="steam-bell-btn" title="Уведомления">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="bell-counter">1</span>
+        </div>
+
+        <!-- Steam User Profile Badge -->
+        <div class="steam-user-profile" id="user-profile-btn" title="Открыть профиль Steam">
+          <div class="avatar-frame online">
+            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar" id="header-avatar-img">
           </div>
-          <span class="profile-nickname" id="header-username">ØSKARŁØŁPØ⁴²</span>
-          <svg class="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="user-nickname" id="header-nickname">ØSKARŁØŁPØ⁴²</span>
+          <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
     </header>
 
-    <!-- Main Viewport -->
-    <main class="main-content">
-      <!-- 1. STORE VIEW (МАГАЗИН) -->
-      <section id="view-store" class="view-panel active">
-        <!-- Hero Featured Banner -->
-        <div class="hero-featured" id="hero-banner">
-          <div class="hero-backdrop" id="hero-backdrop"></div>
-          <div class="hero-overlay"></div>
-          <div class="hero-content">
-            <span class="hero-tag">ГЛАВНАЯ НОВИНКА ИЗ GITHUB</span>
-            <h1 class="hero-title" id="hero-title">Counter-Strike 2 (3D FPS Demake)</h1>
-            <p class="hero-desc" id="hero-desc">Тактический 3D шутер на C# с кастомным софтверным DDA Raycaster движком, полным обзором камеры, оружием и ботами на Dust 2.</p>
-            <div class="hero-actions">
-              <button class="btn btn-primary btn-large" id="hero-cta-btn">
-                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Добавить в библиотеку
-              </button>
-              <button class="btn btn-secondary btn-large" id="hero-details-btn">Подробнее</button>
+    <!-- 2. MAIN CLIENT CONTENT AREA -->
+    <main class="steam-viewport">
+      
+      <!-- ============================================== -->
+      <!-- ВЫКЛАДКА 1: МАГАЗИН STEAM (STORE)               -->
+      <!-- ============================================== -->
+      <section id="view-store" class="steam-view-tab active">
+        <!-- Store Sub-Header with Search -->
+        <div class="store-subbar">
+          <div class="store-subbar-links">
+            <span class="sub-link active">Ваш магазин</span>
+            <span class="sub-link">Новинки и примечательное</span>
+            <span class="sub-link">Категории</span>
+            <span class="sub-link">Очки магазина</span>
+            <span class="sub-link">Новости</span>
+          </div>
+          <div class="store-search-box">
+            <input type="text" id="store-search-input" placeholder="поиск по магазину">
+            <button class="store-search-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Featured & Recommended Carousel (Фирменная витрина Steam) -->
+        <div class="featured-carousel-container">
+          <h2 class="store-section-heading">ПОПУЛЯРНОЕ И РЕКОМЕНДУЕМОЕ</h2>
+          
+          <div class="featured-carousel" id="featured-carousel">
+            <!-- Left Large Visual Screen -->
+            <div class="carousel-main-shot" id="carousel-big-shot">
+              <img src="assets/games/cs2/banner.png" alt="Featured Screenshot" id="carousel-main-img">
+              <div class="carousel-shot-badge">ВЫБОР РЕДАКЦИИ STEAM</div>
+            </div>
+
+            <!-- Right Game Details Column -->
+            <div class="carousel-meta-col">
+              <h3 class="carousel-game-title" id="carousel-title">Counter-Strike 2 (3D FPS Demake)</h3>
+              
+              <!-- 4 Real Mini-screenshots -->
+              <div class="carousel-mini-grid" id="carousel-thumbs">
+                <img src="assets/games/cs2/screen1.png" class="thumb-item active" data-src="assets/games/cs2/screen1.png">
+                <img src="assets/games/cs2/screen2.png" class="thumb-item" data-src="assets/games/cs2/screen2.png">
+                <img src="assets/games/cs2/screen3.png" class="thumb-item" data-src="assets/games/cs2/screen3.png">
+                <img src="assets/games/cs2/banner.png" class="thumb-item" data-src="assets/games/cs2/banner.png">
+              </div>
+
+              <div class="carousel-summary">
+                <span class="carousel-reason">Уже доступно в облаке GitHub:</span>
+                <p id="carousel-short-desc">Аутентичный тактический 3D FPS на C# (.NET 9) с DDA Raycaster движком, полным обзором камеры, оружием AK-47/Deagle/Нож и ботами на Dust 2.</p>
+              </div>
+
+              <div class="carousel-tags">
+                <span class="steam-tag">3D FPS</span>
+                <span class="steam-tag">Dust 2</span>
+                <span class="steam-tag">Шутер</span>
+                <span class="steam-tag">C# .NET 9</span>
+              </div>
+
+              <!-- Price & Add to Library Row -->
+              <div class="carousel-purchase-row">
+                <div class="steam-discount-block">
+                  <span class="discount-percent">-100%</span>
+                  <span class="discount-final">БЕСПЛАТНО</span>
+                </div>
+                <button class="steam-btn steam-btn-green" id="carousel-add-btn">
+                  В КОРЗИНУ / В БИБЛИОТЕКУ
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Store Catalog Section -->
-        <div class="store-catalog">
-          <div class="section-header">
-            <h2 class="section-title">Каталог игр в облаке GitHub</h2>
-            <div class="catalog-filters">
-              <button class="filter-chip active" data-filter="all">Все игры</button>
-              <button class="filter-chip" data-filter="fps">Шутеры</button>
-              <button class="filter-chip" data-filter="racing">Гонки</button>
-              <button class="filter-chip" data-filter="rpg">RPG</button>
-            </div>
-          </div>
-
-          <div class="games-grid" id="store-games-grid">
-            <!-- Dynamically injected game cards -->
+        <!-- Special Offers Grid (Специальные предложения) -->
+        <div class="store-grid-section">
+          <h2 class="store-section-heading">СПЕЦИАЛЬНЫЕ ПРЕДЛОЖЕНИЯ И ИГРЫ ИЗ GITHUB</h2>
+          <div class="store-cards-grid" id="store-cards-container">
+            <!-- Dynamically populated from catalog -->
           </div>
         </div>
       </section>
 
-      <!-- 2. LIBRARY VIEW (БИБЛИОТЕКА) -->
-      <section id="view-library" class="view-panel">
-        <div class="library-container">
-          <!-- Library Sidebar -->
-          <aside class="library-sidebar">
-            <div class="sidebar-header">
-              <span class="sidebar-label">МОИ ИГРЫ (<span id="library-count">0</span>)</span>
+      <!-- ============================================== -->
+      <!-- ВЫКЛАДКА 2: БИБЛИОТЕКА STEAM (LIBRARY)          -->
+      <!-- ============================================== -->
+      <section id="view-library" class="steam-view-tab">
+        <div class="library-split-layout">
+          
+          <!-- Левый сайдбар библиотеки Steam -->
+          <aside class="steam-lib-sidebar">
+            <div class="lib-sidebar-tools">
+              <div class="lib-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="lib-search-input" placeholder="Поиск по названию">
+              </div>
             </div>
-            <div class="library-games-list" id="library-games-list">
-              <!-- Dynamically injected items -->
+
+            <div class="lib-category-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <span>ВСЕ ИГРЫ (<span id="lib-total-count">0</span>)</span>
+            </div>
+
+            <!-- Список игр в сайдбаре -->
+            <div class="lib-games-list" id="lib-games-list">
+              <!-- Injected by app.js -->
             </div>
           </aside>
 
-          <!-- Library Game Details Area -->
-          <div class="library-detail" id="library-detail">
-            <!-- Empty state -->
-            <div class="empty-state" id="library-empty-state">
-              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg>
-              <h3>Ваша библиотека пуста</h3>
-              <p>Перейдите во вкладку «Магазин» и добавьте любую понравившуюся игру из GitHub в один клик.</p>
-              <button class="btn btn-primary" id="goto-store-btn">Перейти в Магазин</button>
+          <!-- Правая главная страница игры (Game Hub) -->
+          <div class="steam-game-hub" id="steam-game-hub">
+            
+            <!-- Hero Top Banner -->
+            <div class="game-hub-hero" id="game-hero-banner">
+              <div class="hero-bg-overlay"></div>
+              <div class="hero-header-content">
+                <h1 class="game-hub-title" id="hub-game-title">Counter-Strike 2 (3D FPS Demake)</h1>
+                <div class="game-hub-meta">
+                  <span class="hub-genre" id="hub-genre">Тактический 3D шутер / FPS</span>
+                  <span class="meta-dot">•</span>
+                  <span class="hub-dev" id="hub-dev">Valve & Community</span>
+                </div>
+              </div>
             </div>
 
-            <!-- Active Game Detail View -->
-            <div class="active-game-view" id="active-game-view" style="display: none;">
-              <div class="game-hero-banner" id="lib-hero-banner">
-                <div class="lib-hero-backdrop" id="lib-hero-backdrop"></div>
-                <div class="lib-hero-gradient"></div>
-                
-                <div class="lib-hero-info">
-                  <h1 class="lib-game-title" id="lib-game-title">Название игры</h1>
-                  <div class="lib-game-meta">
-                    <span class="meta-tag" id="lib-game-genre">Жанр</span>
-                    <span class="meta-separator">•</span>
-                    <span id="lib-game-developer">Разработчик</span>
+            <!-- Steam Green Play Bar (Фирменная зеленая кнопка) -->
+            <div class="steam-action-bar">
+              <div class="action-btn-wrapper">
+                <button class="steam-play-btn green" id="main-play-btn">
+                  <span class="play-btn-icon" id="play-btn-icon">▶</span>
+                  <span class="play-btn-text" id="play-btn-text">ИГРАТЬ</span>
+                </button>
+              </div>
+
+              <!-- Play Stats -->
+              <div class="hub-stat-item">
+                <span class="stat-label">ПОСЛЕДНИЙ ЗАПУСК</span>
+                <span class="stat-value" id="stat-last-played">Сегодня</span>
+              </div>
+              <div class="hub-stat-item">
+                <span class="stat-label">ВРЕМЯ В ИГРЕ</span>
+                <span class="stat-value" id="stat-playtime">48.2 ч.</span>
+              </div>
+              <div class="hub-stat-item">
+                <span class="stat-label">ДОСТИЖЕНИЯ</span>
+                <span class="stat-value">18 / 25</span>
+              </div>
+              <div class="hub-stat-item">
+                <span class="stat-label">СТАТУС ИГРЫ</span>
+                <span class="stat-value status-online" id="hub-game-status">Готово к запуску</span>
+              </div>
+            </div>
+
+            <!-- Real-time Download Progress Bar (Скрыт по умолчанию) -->
+            <div class="steam-download-progress-box" id="lib-download-progress" style="display: none;">
+              <div class="progress-info-row">
+                <span id="dl-status-text">Загрузка и распаковка игры в steamapps/common/...</span>
+                <span id="dl-speed-text">28.4 МБ/с • 0%</span>
+              </div>
+              <div class="steam-progress-track">
+                <div class="steam-progress-bar" id="dl-progress-bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Sub Navigation Tabs for the Game -->
+            <div class="game-hub-subtabs">
+              <button class="hub-tab active">ОБЗОР</button>
+              <button class="hub-tab">АКТИВНОСТЬ</button>
+              <button class="hub-tab">РУКОВОДСТВА</button>
+              <button class="hub-tab">МАСТЕРСКАЯ</button>
+            </div>
+
+            <!-- Game Hub Content Body -->
+            <div class="game-hub-body">
+              
+              <!-- Left: Screenshots & Description -->
+              <div class="hub-main-col">
+                <div class="hub-card">
+                  <h3 class="hub-card-title">СКРИНШОТЫ ИЗ ИГРЫ</h3>
+                  <div class="hub-screenshots-gallery" id="hub-gallery">
+                    <!-- Real screenshots injected here -->
                   </div>
+                </div>
 
-                  <!-- Dynamic Action Button: Install / Play / Stop -->
-                  <div class="lib-action-container">
-                    <button class="btn btn-action" id="lib-action-btn">
-                      <svg class="action-icon" id="lib-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                      <span id="lib-action-label">УСТАНОВИТЬ</span>
-                    </button>
+                <div class="hub-card">
+                  <h3 class="hub-card-title">ОБ ЭТОЙ ИГРЕ</h3>
+                  <p class="hub-description-text" id="hub-full-description">
+                    Подробное описание игры.
+                  </p>
+                </div>
+              </div>
 
-                    <!-- Real Download Progress Bar (visible during installation) -->
-                    <div class="download-progress-container" id="lib-download-progress" style="display: none;">
-                      <div class="download-info-row">
-                        <span class="download-status-txt" id="download-status-txt">Загрузка архива с GitHub...</span>
-                        <span class="download-speed-txt" id="download-speed-txt">0.0 МБ/с</span>
-                      </div>
-                      <div class="progress-track">
-                        <div class="progress-fill" id="download-progress-fill" style="width: 0%;"></div>
-                      </div>
-                    </div>
+              <!-- Right: System Info & Features -->
+              <div class="hub-side-col">
+                <div class="hub-card">
+                  <h3 class="hub-card-title">ИНФОРМАЦИЯ</h3>
+                  <div class="info-row">
+                    <span class="info-k">Разработчик:</span>
+                    <span class="info-v" id="info-developer">Valve</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-k">Издатель:</span>
+                    <span class="info-v">Steam-Platform</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-k">Каталог:</span>
+                    <span class="info-v">GitHub Releases</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-k">Папка установки:</span>
+                    <span class="info-v" id="info-install-dir">steamapps/common/</span>
+                  </div>
+                </div>
+
+                <div class="hub-card">
+                  <h3 class="hub-card-title">ОСОБЕННОСТИ</h3>
+                  <div class="features-list">
+                    <div class="feature-item">✔ Одиночная игра</div>
+                    <div class="feature-item">✔ Сетевой мультиплеер (LAN)</div>
+                    <div class="feature-item">✔ Полная поддержка клавиатуры и мыши</div>
+                    <div class="feature-item">✔ Стабильные 60+ FPS</div>
                   </div>
                 </div>
               </div>
 
-              <!-- Game Stats & Features Row -->
-              <div class="lib-stats-grid">
-                <div class="stat-card">
-                  <span class="stat-label">ПОСЛЕДНИЙ ЗАПУСК</span>
-                  <span class="stat-value" id="stat-last-played">Сегодня</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">ВРЕМЯ В ИГРЕ</span>
-                  <span class="stat-value" id="stat-playtime">0 мин.</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">РАЗМЕР НА ДИСКЕ</span>
-                  <span class="stat-value" id="stat-size">~15.7 МБ</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">ЦЕЛОСТНОСТЬ ФАЙЛОВ</span>
-                  <span class="stat-value status-ok">SHA-256 OK ✔</span>
-                </div>
-              </div>
-
-              <!-- Game Description & Highlights -->
-              <div class="lib-content-sections">
-                <div class="content-block">
-                  <h3 class="block-title">Об игре</h3>
-                  <p class="block-desc" id="lib-full-desc"></p>
-                </div>
-
-                <div class="content-block">
-                  <h3 class="block-title">Скриншоты и медиа</h3>
-                  <div class="screenshots-strip" id="lib-screenshots-strip"></div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </section>
+
     </main>
 
-    <!-- 3. USER PROFILE MODAL -->
-    <div class="modal-backdrop" id="profile-modal" style="display: none;">
-      <div class="modal-card">
+    <!-- 3. USER PROFILE MODAL (Смена ника и аватарки) -->
+    <div class="steam-modal-backdrop" id="profile-modal" style="display: none;">
+      <div class="steam-modal">
         <div class="modal-header">
-          <div class="modal-title-group">
-            <svg class="modal-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <h2>Профиль игрока</h2>
-          </div>
+          <span class="modal-title">РЕДАКТИРОВАНИЕ ПРОФИЛЯ STEAM</span>
           <button class="modal-close-btn" id="profile-modal-close">✕</button>
         </div>
 
         <div class="modal-body">
-          <!-- Avatar Customization -->
-          <div class="profile-editor-section">
-            <div class="profile-avatar-preview-wrapper">
-              <img src="" alt="Avatar Preview" class="profile-big-avatar" id="edit-avatar-preview">
-              <label for="avatar-file-input" class="upload-badge" title="Загрузить своё фото с диска">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div class="profile-edit-grid">
+            
+            <!-- Avatar Section -->
+            <div class="edit-avatar-col">
+              <span class="edit-label">АВАТАР ПРОФИЛЯ</span>
+              <div class="avatar-large-preview">
+                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80" id="edit-avatar-img">
+                <span class="online-indicator">В СЕТИ</span>
+              </div>
+              
+              <!-- Upload Custom Avatar -->
+              <label class="steam-btn steam-btn-secondary upload-btn">
+                <span>📁 Загрузить с компьютера</span>
+                <input type="file" id="avatar-file-input" accept="image/*" style="display: none;">
               </label>
-              <input type="file" id="avatar-file-input" accept="image/*" style="display: none;">
             </div>
 
-            <div class="preset-avatars">
-              <span class="section-sublabel">Выберите готовый аватар:</span>
-              <div class="presets-row">
-                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="preset-avatar-option" data-src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80">
-                <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80" class="preset-avatar-option" data-src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80">
-                <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80" class="preset-avatar-option" data-src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80">
-                <img src="https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=100&auto=format&fit=crop&q=80" class="preset-avatar-option" data-src="https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=100&auto=format&fit=crop&q=80">
+            <!-- Nickname & Presets Section -->
+            <div class="edit-details-col">
+              <div class="form-group">
+                <label class="edit-label">ИМЯ ПРОФИЛЯ (НИКНЕЙМ)</label>
+                <input type="text" class="steam-input" id="edit-nickname-input" value="ØSKARŁØŁPØ⁴²">
+              </div>
+
+              <div class="form-group">
+                <label class="edit-label">ВЫБЕРИТЕ НЕОНОВЫЙ АВАТАР ИЗ КОЛЛЕКЦИИ</label>
+                <div class="preset-avatars-row">
+                  <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt selected" data-src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&auto=format&fit=crop&q=80">
+                  <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80">
+                </div>
+              </div>
+
+              <div class="profile-stats-card">
+                <div class="pstat"><span>Уровень Steam:</span> <strong>42</strong></div>
+                <div class="pstat"><span>Игр на аккаунте:</span> <strong id="profile-games-count">4</strong></div>
+                <div class="pstat"><span>Значки:</span> <strong>12</strong></div>
               </div>
             </div>
-          </div>
 
-          <!-- Nickname Input -->
-          <div class="input-group">
-            <label for="edit-nickname-input">Никнейм игрока:</label>
-            <input type="text" id="edit-nickname-input" class="text-input" placeholder="Введите ваш ник..." maxlength="32">
-          </div>
-
-          <!-- Account Stats Summary -->
-          <div class="profile-stats-summary">
-            <div class="mini-stat">
-              <span class="mini-val" id="profile-stat-games">0</span>
-              <span class="mini-lbl">Игр в аккаунте</span>
-            </div>
-            <div class="mini-stat">
-              <span class="mini-val" id="profile-stat-hours">0 ч.</span>
-              <span class="mini-lbl">Сыграно</span>
-            </div>
-            <div class="mini-stat">
-              <span class="mini-val">LVL 42</span>
-              <span class="mini-lbl">Уровень Steam</span>
-            </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="profile-modal-cancel">Отмена</button>
-          <button class="btn btn-primary" id="profile-modal-save">Сохранить изменения</button>
+          <button class="steam-btn steam-btn-secondary" id="profile-modal-cancel">ОТМЕНА</button>
+          <button class="steam-btn steam-btn-green" id="profile-modal-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
         </div>
       </div>
     </div>
 
-    <!-- 4. GAME DETAILS MODAL (FROM STORE) -->
-    <div class="modal-backdrop" id="game-modal" style="display: none;">
-      <div class="modal-card modal-card-large">
-        <div class="modal-header">
-          <h2 id="modal-game-title">Описание игры</h2>
-          <button class="modal-close-btn" id="game-modal-close">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="game-modal-hero">
-            <img src="" id="modal-game-banner" alt="Game Banner" class="modal-banner-img">
-          </div>
-          <div class="game-modal-details">
-            <div class="modal-desc-col">
-              <h3>Об этой игре</h3>
-              <p id="modal-game-full-desc"></p>
-              <div class="modal-tags" id="modal-game-tags"></div>
-            </div>
-            <div class="modal-meta-col">
-              <div class="meta-box">
-                <div class="meta-row"><span class="lbl">Разработчик:</span> <span class="val" id="modal-game-dev"></span></div>
-                <div class="meta-row"><span class="lbl">Жанр:</span> <span class="val" id="modal-game-genre"></span></div>
-                <div class="meta-row"><span class="lbl">Рейтинг:</span> <span class="val rating" id="modal-game-rating"></span></div>
-                <div class="meta-row"><span class="lbl">Размер:</span> <span class="val" id="modal-game-size"></span></div>
-              </div>
-              <button class="btn btn-primary btn-large btn-block" id="modal-add-btn">
-                + Добавить в библиотеку
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- 4. TOAST NOTIFICATIONS -->
+    <div id="steam-toast-box" class="steam-toast-container"></div>
 
-    <!-- Toast Notification Container -->
-    <div id="toast-container" class="toast-container"></div>
   </div>
 
   <script src="app.js"></script>
