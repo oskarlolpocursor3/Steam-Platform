@@ -1,0 +1,418 @@
+#include "steam/ui/SteamMainWindow.hpp"
+
+#include <iostream>
+#include <sstream>
+#include <filesystem>
+#include <chrono>
+#include <algorithm>
+#include <regex>
+#include <dwmapi.h>
+
+#pragma comment(lib, "dwmapi.lib")
+
+using namespace Microsoft::WRL;
+
+namespace steam::ui {
+
+namespace {
+
+// Lightweight JSON helper to extract string values
+std::string extractJsonString(const std::string& json, const std::string& key) {
+    std::regex re("\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
+    std::smatch match;
+    if (std::regex_search(json, match, re) && match.size() > 1) {
+        return match[1].str();
+    }
+    return "";
+}
+
+// Lightweight JSON helper to extract integer values
+long long extractJsonInt(const std::string& json, const std::string& key) {
+    std::regex re("\"" + key + "\"\\s*:\\s*(-?\\d+)");
+    std::smatch match;
+    if (std::regex_search(json, match, re) && match.size() > 1) {
+        return std::stoll(match[1].str());
+    }
+    return 0;
+}
+
+} // namespace
+
+SteamMainWindow::SteamMainWindow(
+    std::shared_ptr<steam::storage::ILocalStorage> storage,
+    std::shared_ptr<steam::downloader::IDownloadManager> downloadManager,
+    std::shared_ptr<steam::launcher::IProcessLauncher> processLauncher,
+    steam::core::UserSession session
+)
+    : m_storage(std::move(storage))
+    , m_downloadManager(std::move(downloadManager))
+    , m_processLauncher(std::move(processLauncher))
+    , m_session(std::move(session))
+{
+}
+
+SteamMainWindow::~SteamMainWindow() {
+    m_stopMonitor = true;
+    if (m_processMonitorThread.joinable()) {
+        m_processMonitorThread.join();
+    }
+
+#ifdef _WIN32
+    if (m_webView && m_webMessageToken.value != 0) {
+        m_webView->remove_WebMessageReceived(m_webMessageToken);
+    }
+    m_webView.Reset();
+    m_webViewController.Reset();
+    m_webViewEnv.Reset();
+
+    if (m_hwnd) {
+        DestroyWindow(m_hwnd);
+        m_hwnd = nullptr;
+    }
+#endif
+}
+
+std::wstring SteamMainWindow::utf8ToWide(std::string_view utf8) {
+    if (utf8.empty()) return L"";
+    int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
+    std::wstring result(sizeNeeded, 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.data(), static_cast<int>(utf8.size()), result.data(), sizeNeeded);
+    return result;
+}
+
+std::string SteamMainWindow::wideToUtf8(std::wstring_view wide) {
+    if (wide.empty()) return "";
+    int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+    std::string result(sizeNeeded, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), result.data(), sizeNeeded, nullptr, nullptr);
+    return result;
+}
+
+bool SteamMainWindow::create(int width, int height) {
+    HINSTANCE hInstance = GetModuleHandle(nullptr);
+
+    WNDCLASSEXW wcex = {};
+    wcex.cbSize = sizeof(WNDCLASSEXW);
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = SteamMainWindow::windowProcStatic;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wcex.lpszMenuName = nullptr;
+    wcex.lpszClassName = L"SteamNeonClientWindowClass";
+    wcex.hIconSm = LoadIcon(nullptr, IDI_APPLICATION);
+
+    RegisterClassExW(&wcex);
+
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+    int posX = (screenW - width) / 2;
+    int posY = (screenH - height) / 2;
+
+    m_hwnd = CreateWindowExW(
+        0,
+        L"SteamNeonClientWindowClass",
+        L"Steam • by zmanovskij",
+        WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+        posX, posY, width, height,
+        nullptr, nullptr, hInstance, this
+    );
+
+    if (!m_hwnd) {
+        return false;
+    }
+
+    // Windows 10/11 Immersive Dark Titlebar
+    BOOL darkMode = TRUE;
+    DwmSetWindowAttribute(m_hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &darkMode, sizeof(darkMode));
+
+    ShowWindow(m_hwnd, SW_SHOW);
+    UpdateWindow(m_hwnd);
+
+    // Initialize WebView2
+    initWebView();
+
+    return true;
+}
+
+int SteamMainWindow::runEventLoop() {
+    MSG msg = {};
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+    return static_cast<int>(msg.wParam);
+}
+
+void SteamMainWindow::resizeWebView() {
+    if (m_webViewController && m_hwnd) {
+        RECT bounds;
+        GetClientRect(m_hwnd, &bounds);
+        m_webViewController->put_Bounds(bounds);
+    }
+}
+
+void SteamMainWindow::initWebView() {
+    std::filesystem::path userDataDir = std::filesystem::temp_directory_path() / "SteamPlatform_WebView2Data";
+    std::filesystem::create_directories(userDataDir);
+
+    HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
+        nullptr,
+        userDataDir.wstring().c_str(),
+        nullptr,
+        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                if (FAILED(result) || !env) {
+                    std::cerr << "[WebView2] Environment creation failed: " << result << std::endl;
+                    return result;
+                }
+                m_webViewEnv = env;
+
+                m_webViewEnv->CreateCoreWebView2Controller(
+                    m_hwnd,
+                    Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                        [this](HRESULT cResult, ICoreWebView2Controller* controller) -> HRESULT {
+                            if (FAILED(cResult) || !controller) {
+                                std::cerr << "[WebView2] Controller creation failed: " << cResult << std::endl;
+                                return cResult;
+                            }
+                            m_webViewController = controller;
+                            m_webViewController->get_CoreWebView2(&m_webView);
+
+                            if (!m_webView) return E_FAIL;
+
+                            // Configure settings
+                            ComPtr<ICoreWebView2Settings> settings;
+                            m_webView->get_Settings(&settings);
+                            if (settings) {
+                                settings->put_IsScriptEnabled(TRUE);
+                                settings->put_AreDefaultScriptDialogsEnabled(TRUE);
+                                settings->put_IsWebMessageEnabled(TRUE);
+                                settings->put_AreDevToolsEnabled(TRUE);
+                            }
+
+                            // Subscribe to message events from JavaScript
+                            m_webView->add_WebMessageReceived(
+                                Callback<ICoreWebView2WebMessageReceivedEventHandler>(
+                                    [this](ICoreWebView2* /*sender*/, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+                                        LPWSTR rawMsg = nullptr;
+                                        args->TryGetWebMessageAsString(&rawMsg);
+                                        if (rawMsg) {
+                                            std::string utf8Msg = wideToUtf8(rawMsg);
+                                            CoTaskMemFree(rawMsg);
+                                            handleWebMessage(utf8Msg);
+                                        }
+                                        return S_OK;
+                                    }
+                                ).Get(),
+                                &m_webMessageToken
+                            );
+
+                            m_webViewController->put_IsVisible(TRUE);
+                            resizeWebView();
+
+                            // Navigate to local index.html
+                            std::filesystem::path htmlPath = std::filesystem::current_path() / "ui_web" / "index.html";
+                            if (std::filesystem::exists(htmlPath)) {
+                                std::wstring navUri = L"file:///" + htmlPath.wstring();
+                                std::replace(navUri.begin(), navUri.end(), L'\\', L'/');
+                                m_webView->Navigate(navUri.c_str());
+                            } else {
+                                m_webView->NavigateToString(L"<html><body style='background:#0e1218;color:#fff;'><h1>UI Not Found</h1><p>Missing ui_web/index.html</p></body></html>");
+                            }
+
+                            return S_OK;
+                        }
+                    ).Get()
+                );
+                return S_OK;
+            }
+        ).Get()
+    );
+
+    if (FAILED(hr)) {
+        std::cerr << "[WebView2] Failed to initialize environment: " << hr << std::endl;
+    }
+}
+
+void SteamMainWindow::postMessageToWeb(const std::string& jsonString) {
+    if (m_webView) {
+        std::wstring wideJson = utf8ToWide(jsonString);
+        m_webView->PostWebMessageAsJson(wideJson.c_str());
+    }
+}
+
+void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
+    std::cout << "[IPC C++ Received]: " << jsonString << std::endl;
+
+    std::string action = extractJsonString(jsonString, "action");
+    long long gameId = extractJsonInt(jsonString, "gameId");
+
+    if (action == "ready") {
+        // Check which games are actually installed on disk
+        std::vector<int> installed;
+        if (std::filesystem::exists("steamapps/common/CS2Source/cs2.exe")) {
+            installed.push_back(570);
+        }
+        if (std::filesystem::exists("steamapps/common/MarioKartCS/MarioKartCS.exe")) {
+            installed.push_back(1992);
+        }
+        if (std::filesystem::exists("games/Console-DnD/game.exe")) {
+            installed.push_back(101);
+        }
+
+        std::ostringstream ss;
+        ss << "{\"event\":\"init_data\",\"username\":\"" << m_session.getUsername() << "\",\"installedGames\":[";
+        for (size_t i = 0; i < installed.size(); ++i) {
+            ss << installed[i] << (i + 1 < installed.size() ? "," : "");
+        }
+        ss << "]}";
+        postMessageToWeb(ss.str());
+    }
+    else if (action == "update_profile") {
+        std::string username = extractJsonString(jsonString, "username");
+        if (!username.empty()) {
+            m_session.setUsername(username);
+            std::cout << "[PROFILE] Updated username in C++ session: " << username << std::endl;
+        }
+    }
+    else if (action == "add_to_library") {
+        std::cout << "[LIBRARY] Game added to library: " << gameId << std::endl;
+    }
+    else if (action == "install_game") {
+        std::cout << "[INSTALLER] Triggering installation for game ID: " << gameId << std::endl;
+        
+        // Launch installation thread to extract or download game
+        std::thread([this, gameId]() {
+            // Emulate progress steps
+            for (int p = 15; p <= 85; p += 25) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                std::ostringstream prog;
+                prog << "{\"event\":\"download_progress\",\"gameId\":" << gameId << ",\"percent\":" << p << "}";
+                postMessageToWeb(prog.str());
+            }
+
+            // Extract local zip if exists
+            std::filesystem::path zipPath;
+            std::filesystem::path targetDir;
+            if (gameId == 570) {
+                zipPath = "catalog/releases/CS2Source.zip";
+                targetDir = "steamapps/common/CS2Source";
+            } else if (gameId == 1992) {
+                zipPath = "catalog/releases/MarioKartCS.zip";
+                targetDir = "steamapps/common/MarioKartCS";
+            }
+
+            if (std::filesystem::exists(zipPath)) {
+                std::filesystem::create_directories(targetDir);
+                std::string cmd = "tar -xf \"" + zipPath.string() + "\" -C \"" + targetDir.string() + "\"";
+                system(cmd.c_str());
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            std::ostringstream done;
+            done << "{\"event\":\"download_progress\",\"gameId\":" << gameId << ",\"percent\":100}";
+            postMessageToWeb(done.str());
+
+            std::ostringstream inst;
+            inst << "{\"event\":\"game_installed\",\"gameId\":" << gameId << "}";
+            postMessageToWeb(inst.str());
+        }).detach();
+    }
+    else if (action == "launch_game") {
+        std::cout << "[LAUNCHER] Launching game ID: " << gameId << std::endl;
+
+        steam::launcher::LaunchConfig config;
+        if (gameId == 570) {
+            config.executablePath = std::filesystem::current_path() / "steamapps" / "common" / "CS2Source" / "cs2.exe";
+            config.workingDirectory = config.executablePath.parent_path();
+        } else if (gameId == 1992) {
+            config.executablePath = std::filesystem::current_path() / "steamapps" / "common" / "MarioKartCS" / "MarioKartCS.exe";
+            config.workingDirectory = config.executablePath.parent_path();
+        } else if (gameId == 101) {
+            config.executablePath = std::filesystem::current_path() / "games" / "Console-DnD" / "game.exe";
+            config.workingDirectory = config.executablePath.parent_path();
+        }
+
+        if (!std::filesystem::exists(config.executablePath)) {
+            std::cerr << "[LAUNCHER ERROR] Executable not found at " << config.executablePath << std::endl;
+            return;
+        }
+
+        bool ok = m_processLauncher->launch(static_cast<steam::core::AppId>(gameId), config);
+        if (ok) {
+            m_isGameRunning = true;
+            m_runningAppId = static_cast<steam::core::AppId>(gameId);
+
+            std::ostringstream ss;
+            ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":true}";
+            postMessageToWeb(ss.str());
+
+            // Launch monitor thread to catch process termination
+            if (m_processMonitorThread.joinable()) {
+                m_stopMonitor = true;
+                m_processMonitorThread.join();
+            }
+            m_stopMonitor = false;
+
+            m_processMonitorThread = std::thread([this, gameId]() {
+                while (!m_stopMonitor && m_processLauncher->isRunning(static_cast<steam::core::AppId>(gameId))) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                }
+
+                if (!m_stopMonitor) {
+                    m_isGameRunning = false;
+                    std::ostringstream stopped;
+                    stopped << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
+                    postMessageToWeb(stopped.str());
+                }
+            });
+        }
+    }
+    else if (action == "stop_game") {
+        std::cout << "[LAUNCHER] Stopping game ID: " << gameId << std::endl;
+        m_processLauncher->terminate(static_cast<steam::core::AppId>(gameId));
+        m_isGameRunning = false;
+        std::ostringstream ss;
+        ss << "{\"event\":\"game_state\",\"gameId\":" << gameId << ",\"running\":false}";
+        postMessageToWeb(ss.str());
+    }
+}
+
+LRESULT CALLBACK SteamMainWindow::windowProcStatic(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    SteamMainWindow* pThis = nullptr;
+    if (uMsg == WM_NCCREATE) {
+        auto pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
+        pThis = reinterpret_cast<SteamMainWindow*>(pCreate->lpCreateParams);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pThis));
+        pThis->m_hwnd = hwnd;
+    } else {
+        pThis = reinterpret_cast<SteamMainWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    }
+
+    if (pThis) {
+        return pThis->windowProc(hwnd, uMsg, wParam, lParam);
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+LRESULT SteamMainWindow::windowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+    case WM_SIZE:
+        resizeWebView();
+        return 0;
+
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+
+    default:
+        break;
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+} // namespace steam::ui

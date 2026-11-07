@@ -1,0 +1,20 @@
+# Build outputs
+build/
+bin/
+lib/
+obj/
+*.user
+*.suo
+*.ipch
+.vs/
+
+# WebView2 Runtime and caches
+SteamPlatform_WebView2Data/
+EBWebView/
+*.log
+
+# Installed game local state (downloads can be tested or re-extracted)
+steamapps/common/CS2Source/*.pdb
+steamapps/common/HalfLife3/
+games/
+steam_data/
