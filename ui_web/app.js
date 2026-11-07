@@ -63,15 +63,17 @@ const STEAM_CATALOG = [
     price: "Бесплатно",
     rating: "94% Положительные (1,420)",
     shortDescription: "Глубокая партийная ролевая игра по правилам D&D 5-й редакции с 12 классами, расами, подземельями, инвентарем и ASCII-арт графикой.",
-    detailedDescription: "Пошаговая ролевая система с генерацией персонажа, бросками кубиков D20, торговцем Бобом, квестами в таверне, битвами с боссами в подземельях и интерактивной ASCII-графикой.",
-    banner: "assets/games/cs2/screen2.png",
+    detailedDescription: "Пошаговая ролевая система с генерацией персонажа, характеристиками D20, торговцем Бобом, квестами в таверне, битвами с боссами в подземельях и интерактивной ASCII-графикой.",
+    banner: "assets/games/dnd/banner.png",
     screenshots: [
-      "assets/games/cs2/screen2.png",
-      "assets/games/cs2/screen3.png"
+      "assets/games/dnd/screen1.png",
+      "assets/games/dnd/screen2.png",
+      "assets/games/dnd/screen3.png",
+      "assets/games/dnd/banner.png"
     ],
     tags: ["D&D 5e", "RPG", "Пошаговая", "ASCII Art", "Классика"],
     executableRelativePath: "game.exe",
-    installDirectory: "games/Console-DnD",
+    installDirectory: "steamapps/common/Console-DnD",
     installSize: "8.3 МБ",
     installed: true,
     playtimeHours: 12.0,
@@ -87,10 +89,11 @@ const STEAM_CATALOG = [
     rating: "99% Шедевр (99,999)",
     shortDescription: "Самая долгожданная игра в истории индустрии. Приключения Гордона Фримена и Аликс Вэнс в Арктике у исследовательского судна Борей.",
     detailedDescription: "Легендарное продолжение истории Half-Life 2: Episode Two на движке Source 2. Гравитационная пушка, физические головоломки и противостояние Альянсу.",
-    banner: "assets/games/cs2/screen1.png",
+    banner: "assets/games/hl3/banner.png",
     screenshots: [
-      "assets/games/cs2/screen1.png",
-      "assets/games/cs2/screen3.png"
+      "assets/games/hl3/screen1.png",
+      "assets/games/hl3/screen2.png",
+      "assets/games/hl3/banner.png"
     ],
     tags: ["Valve", "Гордон Фримен", "Борей", "Шутер", "Сюжет"],
     executableRelativePath: "hl3_game.exe",
@@ -99,6 +102,29 @@ const STEAM_CATALOG = [
     installed: true,
     playtimeHours: 3.4,
     lastPlayed: "1 окт."
+  },
+  {
+    id: 400,
+    title: "Portal: Aperture Science Demo",
+    genre: "Головоломка / Порталы",
+    developer: "Valve Corporation",
+    publisher: "Valve",
+    price: "Бесплатно",
+    rating: "99% Крайне положительные",
+    shortDescription: "Революционная физическая головоломка с портальной пушкой в испытательных камерах Aperture Science под наблюдением GLaDOS.",
+    detailedDescription: "Используйте портальную пушку ASHPD для преодоления смертельных испытаний, энергетических сфер и турелей в лабораториях Aperture Science.",
+    banner: "assets/games/hl3/screen2.png",
+    screenshots: [
+      "assets/games/hl3/screen2.png",
+      "assets/games/hl3/banner.png"
+    ],
+    tags: ["Порталы", "Головоломка", "GLaDOS", "Физика", "Шедевр"],
+    executableRelativePath: "portal.exe",
+    installDirectory: "steamapps/common/Portal",
+    installSize: "14.2 МБ",
+    installed: true,
+    playtimeHours: 8.7,
+    lastPlayed: "3 нояб."
   }
 ];
 

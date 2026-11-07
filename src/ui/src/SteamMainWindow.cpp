@@ -111,18 +111,42 @@ std::filesystem::path resolveGameExecutable(long long gameId, const std::filesys
     else if (gameId == 101) { // D&D Console RPG
         std::vector<std::filesystem::path> candidates;
         for (const auto& b : baseDirs) {
-            candidates.push_back(b / "games" / "Console-DnD" / "game.exe");
             candidates.push_back(b / "steamapps" / "common" / "Console-DnD" / "game.exe");
+            candidates.push_back(b / "ind" / "Console-DnD-main" / "game.exe");
+            candidates.push_back(b / "Steam-Clone-Platform" / "games" / "Console-DnD" / "game.exe");
         }
         for (const auto& c : candidates) {
-            if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
+            if (std::filesystem::exists(c)) {
+                // Ensure valid binary, reject old corrupted dummy
+                if (std::filesystem::file_size(c) != 10485760) {
+                    return std::filesystem::canonical(c);
+                }
+            }
         }
     }
     else if (gameId == 70) { // Half-Life 3 Prototype
         std::vector<std::filesystem::path> candidates;
         for (const auto& b : baseDirs) {
             candidates.push_back(b / "steamapps" / "common" / "HalfLife3" / "hl3_game.exe");
+            candidates.push_back(b / "steamapps" / "common" / "HalfLife3" / "HalfLife3Game.exe");
+            candidates.push_back(b / "SteamSharp" / "HalfLife3Game" / "bin" / "Release" / "net9.0-windows" / "HalfLife3Game.exe");
             candidates.push_back(b / "SteamSharp" / "HalfLife3Game" / "bin" / "Debug" / "net9.0-windows" / "HalfLife3Game.exe");
+        }
+        for (const auto& c : candidates) {
+            if (std::filesystem::exists(c)) {
+                if (std::filesystem::file_size(c) != 10485760) {
+                    return std::filesystem::canonical(c);
+                }
+            }
+        }
+    }
+    else if (gameId == 400) { // Portal Classic
+        std::vector<std::filesystem::path> candidates;
+        for (const auto& b : baseDirs) {
+            candidates.push_back(b / "steamapps" / "common" / "Portal" / "portal.exe");
+            candidates.push_back(b / "steamapps" / "common" / "Portal" / "PortalGame.exe");
+            candidates.push_back(b / "SteamSharp" / "PortalGame" / "bin" / "Release" / "net9.0-windows" / "PortalGame.exe");
+            candidates.push_back(b / "SteamSharp" / "PortalGame" / "bin" / "Debug" / "net9.0-windows" / "PortalGame.exe");
         }
         for (const auto& c : candidates) {
             if (std::filesystem::exists(c)) return std::filesystem::canonical(c);
@@ -369,6 +393,9 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
         if (!resolveGameExecutable(70, m_steamRootDir).empty()) {
             installed.push_back(70);
         }
+        if (!resolveGameExecutable(400, m_steamRootDir).empty()) {
+            installed.push_back(400);
+        }
 
         std::ostringstream ss;
         ss << "{\"event\":\"init_data\",\"username\":\"" << m_session.getUsername() << "\",\"installedGames\":[";
@@ -447,6 +474,9 @@ void SteamMainWindow::handleWebMessage(const std::string& jsonString) {
             steam::launcher::LaunchConfig config;
             config.executablePath = exePath;
             config.workingDirectory = exePath.parent_path();
+            if (gameId == 101) {
+                config.createNewConsole = true;
+            }
 
             std::cout << "[LAUNCHER] Starting process: " << exePath.string() << std::endl;
             bool ok = m_processLauncher->launch(static_cast<steam::core::AppId>(gameId), config);
