@@ -14,7 +14,8 @@ EBWebView/
 *.log
 
 # Installed game local state (downloads can be tested or re-extracted)
-steamapps/common/CS2Source/*.pdb
-steamapps/common/HalfLife3/
-games/
-steam_data/
+/steamapps/
+/SteamApp/
+/games/
+/steam_data/
+ui_web/assets/logo_original.png

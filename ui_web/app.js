@@ -93,6 +93,7 @@ const STEAM_CATALOG = [
     screenshots: [
       "assets/games/hl3/screen1.png",
       "assets/games/hl3/screen2.png",
+      "assets/games/hl3/screen3.png",
       "assets/games/hl3/banner.png"
     ],
     tags: ["Valve", "Гордон Фримен", "Борей", "Шутер", "Сюжет"],
@@ -113,10 +114,12 @@ const STEAM_CATALOG = [
     rating: "99% Крайне положительные",
     shortDescription: "Революционная физическая головоломка с портальной пушкой в испытательных камерах Aperture Science под наблюдением GLaDOS.",
     detailedDescription: "Используйте портальную пушку ASHPD для преодоления смертельных испытаний, энергетических сфер и турелей в лабораториях Aperture Science.",
-    banner: "assets/games/hl3/screen2.png",
+    banner: "assets/games/portal/banner.png",
     screenshots: [
-      "assets/games/hl3/screen2.png",
-      "assets/games/hl3/banner.png"
+      "assets/games/portal/screen1.png",
+      "assets/games/portal/screen2.png",
+      "assets/games/portal/screen3.png",
+      "assets/games/portal/banner.png"
     ],
     tags: ["Порталы", "Головоломка", "GLaDOS", "Физика", "Шедевр"],
     executableRelativePath: "portal.exe",
