@@ -1,6 +1,6 @@
 /**
- * STEAM CLIENT CONTROLLER (UNSLOPPED & FEATURE-COMPLETE)
- * Real Local Auth • Dynamic Profiles • Zero Hardcoding • Per-User Library • Real 60+ FPS Game Launcher
+ * STEAM CLIENT CONTROLLER
+ * Real Local Auth • Dynamic Profiles • Zero Hardcoding • Per-User Library • Real Game Launcher
  */
 
 // 1. STEAM MASTER CATALOG
@@ -134,36 +134,23 @@ class LocalAccountManager {
   }
 
   initDatabase() {
-    const raw = localStorage.getItem(this.STORAGE_KEY_USERS);
-    if (!raw) {
-      // Create clean starter account
-      const defaultUser = {
-        username: "gamer",
-        password: "123",
-        displayName: "SteamGamer",
-        avatar: "assets/avatars/freeman.svg",
-        bio: "Любитель классики и шутеров",
-        wallet: 1500.0,
-        library: [570, 1992, 101, 70, 400], // Default starter collection
-        playtime: {
-          570: 14.2,
-          1992: 8.5,
-          101: 3.1,
-          70: 1.0,
-          400: 2.4
-        },
-        lastPlayed: {
-          570: "Сегодня",
-          1992: "Вчера",
-          101: "3 дня назад",
-          70: "1 окт.",
-          400: "28 окт."
-        },
-        createdAt: new Date().toLocaleDateString("ru-RU")
-      };
-      const users = [defaultUser];
-      localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
-      localStorage.setItem(this.STORAGE_KEY_ACTIVE, "gamer");
+    // Zero hardcoding: purge any legacy placeholder accounts and start clean
+    let users = [];
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY_USERS);
+      if (raw) {
+        users = JSON.parse(raw);
+        // Remove old demo placeholders
+        users = users.filter(u => u.username !== "gamer" && !(u.displayName && u.displayName.includes("ØSKAR")));
+      }
+    } catch {
+      users = [];
+    }
+    localStorage.setItem(this.STORAGE_KEY_USERS, JSON.stringify(users));
+
+    const active = localStorage.getItem(this.STORAGE_KEY_ACTIVE);
+    if (active === "gamer" || (active && !users.some(u => u.username === active))) {
+      localStorage.removeItem(this.STORAGE_KEY_ACTIVE);
     }
   }
 
@@ -186,14 +173,15 @@ class LocalAccountManager {
     return users.find(u => u.username.toLowerCase() === activeUsername.toLowerCase()) || null;
   }
 
-  register(username, password, displayName, avatar, initialBalance = 1000) {
+  register(username, password, displayName) {
     username = (username || "").trim().toLowerCase();
     displayName = (displayName || "").trim() || username;
     password = (password || "").trim();
 
     if (!username) throw new Error("Укажите имя аккаунта (логин).");
-    if (!password) throw new Error("Укажите пароль.");
     if (username.length < 3) throw new Error("Имя аккаунта должно быть не менее 3 символов.");
+    if (!password) throw new Error("Укажите пароль.");
+    if (password.length < 3) throw new Error("Пароль должен быть не менее 3 символов.");
 
     const users = this.getUsers();
     if (users.some(u => u.username.toLowerCase() === username)) {
@@ -204,10 +192,9 @@ class LocalAccountManager {
       username: username,
       password: password,
       displayName: displayName,
-      avatar: avatar || "assets/avatars/freeman.svg",
-      bio: "Новый пользователь Steam",
-      wallet: parseFloat(initialBalance) || 0.0,
-      library: [570, 1992], // Starter games
+      avatar: "assets/avatar_default.svg",
+      bio: "Пользователь Steam",
+      library: [], // New user starts with clean empty library, can add any game freely
       playtime: {},
       lastPlayed: {},
       createdAt: new Date().toLocaleDateString("ru-RU")
@@ -222,6 +209,10 @@ class LocalAccountManager {
   login(username, password) {
     username = (username || "").trim().toLowerCase();
     password = (password || "").trim();
+
+    if (!username || !password) {
+      throw new Error("Заполните логин и пароль.");
+    }
 
     const users = this.getUsers();
     const user = users.find(u => u.username.toLowerCase() === username && u.password === password);
@@ -258,20 +249,13 @@ class LocalAccountManager {
     const user = this.getActiveUser();
     if (!user) return false;
 
+    if (!user.library) user.library = [];
     if (!user.library.includes(gameId)) {
       user.library.push(gameId);
       this.updateProfile({ library: user.library });
       return true;
     }
     return false;
-  }
-
-  addWalletFunds(amount) {
-    const user = this.getActiveUser();
-    if (!user) return 0;
-    const newBal = (user.wallet || 0) + amount;
-    this.updateProfile({ wallet: newBal });
-    return newBal;
   }
 
   recordGamePlayed(gameId) {
@@ -300,12 +284,8 @@ class SteamClientApp {
     this.carouselTimer = null;
     this.runningGameId = null;
     this.isGameRunning = false;
-
-    // Temporary storage for avatar selections
-    this.tempRegAvatar = "assets/avatars/freeman.svg";
     this.tempProfileAvatar = null;
-    this.tempRegBalance = 1000;
-    this.tempWalletTopup = 500;
+    this.searchQuery = "";
 
     this.init();
   }
@@ -317,6 +297,12 @@ class SteamClientApp {
     this.renderLibrarySidebar();
     this.selectGame(this.selectedGameId);
     this.startCarouselAutoCycle();
+
+    // Check if user is logged in; if not, open Auth modal
+    const active = this.accountManager.getActiveUser();
+    if (!active) {
+      this.openAuthModal("login");
+    }
 
     // Setup IPC with C++ WebView2
     if (window.chrome && window.chrome.webview) {
@@ -348,24 +334,20 @@ class SteamClientApp {
     const user = this.accountManager.getActiveUser();
     const avatarImg = document.getElementById("header-avatar-img");
     const nicknameEl = document.getElementById("header-nickname");
-    const walletEl = document.getElementById("wallet-amount");
+    const countBadge = document.getElementById("lib-count-badge");
+    const logoutBtn = document.getElementById("header-logout-btn");
 
     if (user) {
-      avatarImg.src = user.avatar;
-      nicknameEl.textContent = user.displayName;
-      walletEl.textContent = this.formatCurrency(user.wallet);
-      document.getElementById("lib-count-badge").textContent = (user.library || []).length;
+      if (avatarImg) avatarImg.src = user.avatar || "assets/avatar_default.svg";
+      if (nicknameEl) nicknameEl.textContent = user.displayName || user.username;
+      if (countBadge) countBadge.textContent = (user.library || []).length;
+      if (logoutBtn) logoutBtn.style.display = "flex";
     } else {
-      avatarImg.src = "assets/avatars/steam.svg";
-      nicknameEl.textContent = "Войти в Steam";
-      walletEl.textContent = "0,00 ₽";
-      document.getElementById("lib-count-badge").textContent = "0";
+      if (avatarImg) avatarImg.src = "assets/avatar_default.svg";
+      if (nicknameEl) nicknameEl.textContent = "Вход в Steam";
+      if (countBadge) countBadge.textContent = "0";
+      if (logoutBtn) logoutBtn.style.display = "none";
     }
-  }
-
-  formatCurrency(val) {
-    const num = parseFloat(val) || 0;
-    return num.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₽";
   }
 
   // ==========================================================================
@@ -385,75 +367,83 @@ class SteamClientApp {
     const isOwned = user && user.library && user.library.includes(featured.id);
 
     // Title & Text
-    document.getElementById("carousel-title").textContent = featured.title;
-    document.getElementById("carousel-short-desc").textContent = featured.shortDescription;
+    const titleEl = document.getElementById("carousel-title");
+    const descEl = document.getElementById("carousel-short-desc");
+    if (titleEl) titleEl.textContent = featured.title;
+    if (descEl) descEl.textContent = featured.shortDescription;
 
     // Main Visual
     const mainImg = document.getElementById("carousel-main-img");
-    mainImg.src = featured.banner;
+    if (mainImg) mainImg.src = featured.banner;
 
     // Mini Thumbs Grid
     const thumbsContainer = document.getElementById("carousel-thumbs");
-    thumbsContainer.innerHTML = "";
-
-    featured.screenshots.forEach((shot, idx) => {
-      const thumb = document.createElement("img");
-      thumb.src = shot;
-      thumb.className = `thumb-item ${idx === 0 ? 'active' : ''}`;
-      
-      // Hovering or clicking swaps the main visual smoothly
-      thumb.onmouseenter = () => {
-        thumbsContainer.querySelectorAll(".thumb-item").forEach(t => t.classList.remove("active"));
-        thumb.classList.add("active");
-        mainImg.src = shot;
-      };
-      thumb.onclick = () => {
-        thumbsContainer.querySelectorAll(".thumb-item").forEach(t => t.classList.remove("active"));
-        thumb.classList.add("active");
-        mainImg.src = shot;
-      };
-      thumbsContainer.appendChild(thumb);
-    });
+    if (thumbsContainer) {
+      thumbsContainer.innerHTML = "";
+      featured.screenshots.forEach((shot, idx) => {
+        const thumb = document.createElement("img");
+        thumb.src = shot;
+        thumb.className = `thumb-item ${idx === 0 ? 'active' : ''}`;
+        
+        thumb.onmouseenter = () => {
+          thumbsContainer.querySelectorAll(".thumb-item").forEach(t => t.classList.remove("active"));
+          thumb.classList.add("active");
+          if (mainImg) mainImg.src = shot;
+        };
+        thumb.onclick = () => {
+          thumbsContainer.querySelectorAll(".thumb-item").forEach(t => t.classList.remove("active"));
+          thumb.classList.add("active");
+          if (mainImg) mainImg.src = shot;
+        };
+        thumbsContainer.appendChild(thumb);
+      });
+    }
 
     // Tags
     const tagsContainer = document.getElementById("carousel-tags");
-    tagsContainer.innerHTML = "";
-    (featured.tags || []).forEach(tag => {
-      const span = document.createElement("span");
-      span.className = "steam-tag";
-      span.textContent = tag;
-      tagsContainer.appendChild(span);
-    });
+    if (tagsContainer) {
+      tagsContainer.innerHTML = "";
+      (featured.tags || []).forEach(tag => {
+        const span = document.createElement("span");
+        span.className = "steam-tag";
+        span.textContent = tag;
+        tagsContainer.appendChild(span);
+      });
+    }
 
     // Carousel Action Button
     const addBtn = document.getElementById("carousel-add-btn");
-    if (isOwned) {
-      addBtn.textContent = "✓ В БИБЛИОТЕКЕ";
-      addBtn.className = "steam-btn steam-btn-secondary";
-      addBtn.onclick = () => {
-        this.selectGame(featured.id);
-        this.switchTab("library");
-      };
-    } else {
-      addBtn.textContent = "В БИБЛИОТЕКУ";
-      addBtn.className = "steam-btn steam-btn-green";
-      addBtn.onclick = () => {
-        this.addToLibrary(featured.id);
-      };
+    if (addBtn) {
+      if (isOwned) {
+        addBtn.textContent = "✓ В БИБЛИОТЕКЕ";
+        addBtn.className = "steam-btn steam-btn-secondary";
+        addBtn.onclick = () => {
+          this.selectGame(featured.id);
+          this.switchTab("library");
+        };
+      } else {
+        addBtn.textContent = "В БИБЛИОТЕКУ";
+        addBtn.className = "steam-btn steam-btn-green";
+        addBtn.onclick = () => {
+          this.addToLibrary(featured.id);
+        };
+      }
     }
 
     // Dots indicator
     const dotsBox = document.getElementById("caro-dots");
-    dotsBox.innerHTML = "";
-    this.games.forEach((g, i) => {
-      const dot = document.createElement("div");
-      dot.className = `caro-dot ${i === this.featuredCarouselIndex ? 'active' : ''}`;
-      dot.onclick = () => {
-        this.featuredCarouselIndex = i;
-        this.renderFeaturedCarousel();
-      };
-      dotsBox.appendChild(dot);
-    });
+    if (dotsBox) {
+      dotsBox.innerHTML = "";
+      this.games.forEach((g, i) => {
+        const dot = document.createElement("div");
+        dot.className = `caro-dot ${i === this.featuredCarouselIndex ? 'active' : ''}`;
+        dot.onclick = () => {
+          this.featuredCarouselIndex = i;
+          this.renderFeaturedCarousel();
+        };
+        dotsBox.appendChild(dot);
+      });
+    }
   }
 
   nextFeaturedGame() {
@@ -481,7 +471,20 @@ class SteamClientApp {
     const user = this.accountManager.getActiveUser();
     const userLibrary = (user && user.library) ? user.library : [];
 
-    this.games.forEach(game => {
+    const query = (this.searchQuery || "").trim().toLowerCase();
+    const filtered = this.games.filter(g => {
+      if (!query) return true;
+      return g.title.toLowerCase().includes(query) ||
+             g.genre.toLowerCase().includes(query) ||
+             (g.tags && g.tags.some(t => t.toLowerCase().includes(query)));
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div style="grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: var(--steam-text-muted); font-size: 14px;">По вашему запросу ничего не найдено.</div>`;
+      return;
+    }
+
+    filtered.forEach(game => {
       const isOwned = userLibrary.includes(game.id);
 
       const card = document.createElement("div");
@@ -530,7 +533,7 @@ class SteamClientApp {
     const user = this.accountManager.getActiveUser();
     if (!user) {
       this.showToast("Сначала войдите в свой аккаунт Steam!");
-      this.openAuthModal();
+      this.openAuthModal("login");
       return;
     }
 
@@ -561,17 +564,18 @@ class SteamClientApp {
 
     const user = this.accountManager.getActiveUser();
     const userLibrary = (user && user.library) ? user.library : [];
-
     const libGames = this.games.filter(g => userLibrary.includes(g.id));
 
-    document.getElementById("lib-total-count").textContent = libGames.length;
-    document.getElementById("lib-count-badge").textContent = libGames.length;
+    const totalEl = document.getElementById("lib-total-count");
+    const countBadge = document.getElementById("lib-count-badge");
+    if (totalEl) totalEl.textContent = libGames.length;
+    if (countBadge) countBadge.textContent = libGames.length;
 
     if (libGames.length === 0) {
-      emptyBox.style.display = "flex";
+      if (emptyBox) emptyBox.style.display = "flex";
       return;
     }
-    emptyBox.style.display = "none";
+    if (emptyBox) emptyBox.style.display = "none";
 
     libGames.forEach(game => {
       const item = document.createElement("div");
@@ -585,6 +589,11 @@ class SteamClientApp {
       `;
       list.appendChild(item);
     });
+
+    // If current selected game not in library, auto-select first owned
+    if (!userLibrary.includes(this.selectedGameId) && libGames.length > 0) {
+      this.selectGame(libGames[0].id);
+    }
   }
 
   selectGame(gameId) {
@@ -607,31 +616,40 @@ class SteamClientApp {
     });
 
     // Update Game Hub
-    document.getElementById("hub-game-title").textContent = game.title;
-    document.getElementById("hub-genre").textContent = game.genre;
-    document.getElementById("hub-dev").textContent = game.developer;
-    document.getElementById("stat-last-played").textContent = userLastPlayed;
-    document.getElementById("stat-playtime").textContent = `${userPlaytime.toFixed(1)} ч.`;
-    document.getElementById("info-developer").textContent = game.developer;
-    document.getElementById("info-install-dir").textContent = game.installDirectory;
-    document.getElementById("hub-full-description").textContent = game.detailedDescription;
+    const hubTitle = document.getElementById("hub-game-title");
+    const hubGenre = document.getElementById("hub-genre");
+    const hubDev = document.getElementById("hub-dev");
+    const statLast = document.getElementById("stat-last-played");
+    const statPlay = document.getElementById("stat-playtime");
+    const infoDev = document.getElementById("info-developer");
+    const infoDir = document.getElementById("info-install-dir");
+    const hubDesc = document.getElementById("hub-full-description");
+
+    if (hubTitle) hubTitle.textContent = game.title;
+    if (hubGenre) hubGenre.textContent = game.genre;
+    if (hubDev) hubDev.textContent = game.developer;
+    if (statLast) statLast.textContent = userLastPlayed;
+    if (statPlay) statPlay.textContent = `${userPlaytime.toFixed(1)} ч.`;
+    if (infoDev) infoDev.textContent = game.developer;
+    if (infoDir) infoDir.textContent = game.installDirectory;
+    if (hubDesc) hubDesc.textContent = game.detailedDescription;
 
     // Set Hero Banner
     const heroBanner = document.getElementById("game-hero-banner");
-    heroBanner.style.backgroundImage = `url('${game.banner}')`;
+    if (heroBanner) heroBanner.style.backgroundImage = `url('${game.banner}')`;
 
     // Screenshots Gallery
     const gallery = document.getElementById("hub-gallery");
-    gallery.innerHTML = "";
-    game.screenshots.forEach(shot => {
-      const img = document.createElement("img");
-      img.src = shot;
-      img.alt = game.title;
-      img.onclick = () => {
-        window.open(shot, "_blank");
-      };
-      gallery.appendChild(img);
-    });
+    if (gallery) {
+      gallery.innerHTML = "";
+      game.screenshots.forEach(shot => {
+        const img = document.createElement("img");
+        img.src = shot;
+        img.alt = game.title;
+        img.onclick = () => window.open(shot, "_blank");
+        gallery.appendChild(img);
+      });
+    }
 
     // Update Play / Install Button
     this.updatePlayButton();
@@ -645,6 +663,7 @@ class SteamClientApp {
     const icon = document.getElementById("play-btn-icon");
     const text = document.getElementById("play-btn-text");
     const status = document.getElementById("hub-game-status");
+    if (!btn || !icon || !text || !status) return;
 
     btn.className = "steam-play-btn";
 
@@ -677,6 +696,13 @@ class SteamClientApp {
   // ==========================================================================
 
   launchGame(gameId) {
+    const user = this.accountManager.getActiveUser();
+    if (!user) {
+      this.showToast("Сначала войдите в свой аккаунт Steam!");
+      this.openAuthModal("login");
+      return;
+    }
+
     const game = this.games.find(g => g.id === gameId);
     this.showToast(`Запуск игры: ${game ? game.title : ''}`);
     this.accountManager.recordGamePlayed(gameId);
@@ -697,16 +723,16 @@ class SteamClientApp {
     const progressBox = document.getElementById("lib-download-progress");
     const fill = document.getElementById("dl-progress-bar");
     const speed = document.getElementById("dl-speed-text");
-    progressBox.style.display = "block";
-    fill.style.width = "10%";
+    if (progressBox) progressBox.style.display = "block";
+    if (fill) fill.style.width = "10%";
 
     this.sendToBackend({ action: "install_game", gameId: gameId });
 
     let p = 10;
     const timer = setInterval(() => {
       p += 15;
-      fill.style.width = `${Math.min(p, 95)}%`;
-      speed.textContent = `34.5 МБ/с • ${Math.min(p, 95)}%`;
+      if (fill) fill.style.width = `${Math.min(p, 95)}%`;
+      if (speed) speed.textContent = `34.5 МБ/с • ${Math.min(p, 95)}%`;
       if (p >= 100) {
         clearInterval(timer);
       }
@@ -718,138 +744,103 @@ class SteamClientApp {
   // ==========================================================================
 
   bindEvents() {
-    // Top Tabs
-    document.getElementById("tab-store").onclick = () => this.switchTab("store");
-    document.getElementById("tab-library").onclick = () => this.switchTab("library");
-
-    // History buttons
-    document.getElementById("nav-back-btn").onclick = () => this.switchTab("store");
-    document.getElementById("nav-forward-btn").onclick = () => this.switchTab("library");
-    document.getElementById("brand-logo-btn").onclick = () => this.switchTab("store");
-
-    // Carousel buttons
-    document.getElementById("caro-next-btn").onclick = () => this.nextFeaturedGame();
-    document.getElementById("caro-prev-btn").onclick = () => this.prevFeaturedGame();
-
-    // Go to store from empty library
-    document.getElementById("lib-go-store-btn").onclick = () => this.switchTab("store");
-
-    // Wallet Topup Button
-    document.getElementById("wallet-btn").onclick = () => this.openWalletModal();
-    document.getElementById("wallet-modal-close").onclick = () => this.closeWalletModal();
-    document.getElementById("wallet-modal-cancel").onclick = () => this.closeWalletModal();
-    document.getElementById("wallet-modal-confirm").onclick = () => this.confirmWalletTopup();
-
-    // Wallet Topup Options Chips
-    document.querySelectorAll(".wallet-chip-opt").forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll(".wallet-chip-opt").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        this.tempWalletTopup = parseInt(btn.dataset.val, 10);
-        document.getElementById("custom-wallet-input").value = "";
-      };
-    });
-
-    document.getElementById("custom-wallet-input").oninput = (e) => {
-      document.querySelectorAll(".wallet-chip-opt").forEach(b => b.classList.remove("selected"));
-      this.tempWalletTopup = parseFloat(e.target.value) || 0;
+    const on = (id, evt, handler) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener(evt, handler);
     };
 
-    // User Profile Button
-    document.getElementById("user-profile-btn").onclick = () => {
+    // Top Navigation Tabs
+    on("tab-store", "click", () => this.switchTab("store"));
+    on("tab-library", "click", () => this.switchTab("library"));
+
+    // History Buttons & Brand Logo
+    on("nav-back-btn", "click", () => this.switchTab("store"));
+    on("nav-forward-btn", "click", () => this.switchTab("library"));
+    on("brand-logo-btn", "click", () => this.switchTab("store"));
+
+    // Carousel Controls
+    on("caro-next-btn", "click", () => this.nextFeaturedGame());
+    on("caro-prev-btn", "click", () => this.prevFeaturedGame());
+
+    // Store Search Input
+    const searchInput = document.getElementById("store-search-input");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        this.searchQuery = e.target.value;
+        this.renderStoreGrid();
+      });
+    }
+
+    // Go to store from empty library
+    on("lib-go-store-btn", "click", () => this.switchTab("store"));
+
+    // Topbar Profile and Logout
+    on("user-profile-btn", "click", () => {
       const user = this.accountManager.getActiveUser();
       if (user) {
         this.openProfileModal();
       } else {
-        this.openAuthModal();
+        this.openAuthModal("login");
       }
-    };
+    });
+
+    on("header-logout-btn", "click", () => this.handleLogout());
 
     // Profile Modal
-    document.getElementById("profile-modal-close").onclick = () => this.closeProfileModal();
-    document.getElementById("profile-modal-cancel").onclick = () => this.closeProfileModal();
-    document.getElementById("profile-modal-save").onclick = () => this.saveProfileModal();
-    document.getElementById("profile-topup-btn").onclick = () => {
+    on("profile-modal-close", "click", () => this.closeProfileModal());
+    on("profile-modal-cancel", "click", () => this.closeProfileModal());
+    on("profile-modal-save", "click", () => this.saveProfileModal());
+    on("profile-switch-acc-btn", "click", () => {
       this.closeProfileModal();
-      this.openWalletModal();
-    };
-    document.getElementById("profile-switch-acc-btn").onclick = () => {
-      this.closeProfileModal();
-      this.openAuthModal();
-    };
-    document.getElementById("profile-logout-btn").onclick = () => {
-      this.accountManager.logout();
-      this.closeProfileModal();
-      this.syncCurrentUser();
-      this.renderStore();
-      this.renderLibrarySidebar();
-      this.showToast("Вы вышли из своего аккаунта Steam.");
-    };
-
-    // Profile Avatar File Upload
-    document.getElementById("avatar-file-input").onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          this.tempProfileAvatar = re.target.result;
-          document.getElementById("edit-avatar-img").src = this.tempProfileAvatar;
-          document.querySelectorAll("#profile-avatar-presets .preset-avatar-opt").forEach(p => p.classList.remove("selected"));
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    // Profile Avatar Presets
-    document.querySelectorAll("#profile-avatar-presets .preset-avatar-opt").forEach(img => {
-      img.onclick = () => {
-        document.querySelectorAll("#profile-avatar-presets .preset-avatar-opt").forEach(p => p.classList.remove("selected"));
-        img.classList.add("selected");
-        this.tempProfileAvatar = img.dataset.src;
-        document.getElementById("edit-avatar-img").src = this.tempProfileAvatar;
-      };
+      this.openAuthModal("login");
     });
+    on("profile-logout-btn", "click", () => this.handleLogout());
+
+    // Profile Custom Avatar Upload from Disk
+    const avatarInput = document.getElementById("avatar-file-input");
+    if (avatarInput) {
+      avatarInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          if (!file.type.startsWith("image/")) {
+            this.showToast("Пожалуйста, выберите файл изображения (PNG, JPG).");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            this.tempProfileAvatar = re.target.result;
+            const preview = document.getElementById("edit-avatar-img");
+            if (preview) preview.src = this.tempProfileAvatar;
+            this.showToast("Аватар загружен! Нажмите «СОХРАНИТЬ».");
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
 
     // Auth Modal (Login / Register)
-    document.getElementById("auth-modal-close").onclick = () => this.closeAuthModal();
-    document.getElementById("auth-tab-login-btn").onclick = () => this.switchAuthTab("login");
-    document.getElementById("auth-tab-reg-btn").onclick = () => this.switchAuthTab("reg");
-    document.getElementById("login-submit-btn").onclick = () => this.handleLogin();
-    document.getElementById("login-guest-btn").onclick = () => this.handleGuestLogin();
-    document.getElementById("reg-submit-btn").onclick = () => this.handleRegister();
+    on("auth-modal-close", "click", () => this.closeAuthModal());
+    on("auth-tab-login-btn", "click", () => this.switchAuthTab("login"));
+    on("auth-tab-reg-btn", "click", () => this.switchAuthTab("reg"));
+    on("login-submit-btn", "click", () => this.handleLogin());
+    on("reg-submit-btn", "click", () => this.handleRegister());
 
-    // Registration Avatar Presets
-    document.querySelectorAll("#reg-avatar-presets .preset-avatar-opt").forEach(img => {
-      img.onclick = () => {
-        document.querySelectorAll("#reg-avatar-presets .preset-avatar-opt").forEach(p => p.classList.remove("selected"));
-        img.classList.add("selected");
-        this.tempRegAvatar = img.dataset.src;
-        document.getElementById("reg-avatar-file-name").textContent = "";
-      };
-    });
-
-    // Registration Avatar File Upload
-    document.getElementById("reg-avatar-file-input").onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          this.tempRegAvatar = re.target.result;
-          document.getElementById("reg-avatar-file-name").textContent = file.name;
-          document.querySelectorAll("#reg-avatar-presets .preset-avatar-opt").forEach(p => p.classList.remove("selected"));
-        };
-        reader.readAsDataURL(file);
+    // Keyboard shortcuts (Enter in form inputs)
+    const onEnter = (id, fn) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") fn();
+        });
       }
     };
 
-    // Registration Balance Chips
-    document.querySelectorAll(".balance-chip").forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll(".balance-chip").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        this.tempRegBalance = parseFloat(btn.dataset.amount) || 0;
-      };
-    });
+    onEnter("login-username-input", () => this.handleLogin());
+    onEnter("login-password-input", () => this.handleLogin());
+    onEnter("reg-username-input", () => this.handleRegister());
+    onEnter("reg-nickname-input", () => this.handleRegister());
+    onEnter("reg-password-input", () => this.handleRegister());
+    onEnter("edit-nickname-input", () => this.saveProfileModal());
   }
 
   // ==========================================================================
@@ -857,29 +848,40 @@ class SteamClientApp {
   // ==========================================================================
 
   openAuthModal(defaultTab = "login") {
-    document.getElementById("auth-modal").style.display = "flex";
+    const modal = document.getElementById("auth-modal");
+    if (!modal) return;
+    modal.style.display = "flex";
     this.switchAuthTab(defaultTab);
     this.renderSavedAccountsList();
-    document.getElementById("login-error-msg").style.display = "none";
-    document.getElementById("reg-error-msg").style.display = "none";
+    const loginErr = document.getElementById("login-error-msg");
+    const regErr = document.getElementById("reg-error-msg");
+    if (loginErr) loginErr.style.display = "none";
+    if (regErr) regErr.style.display = "none";
   }
 
   closeAuthModal() {
-    document.getElementById("auth-modal").style.display = "none";
+    const modal = document.getElementById("auth-modal");
+    if (modal) modal.style.display = "none";
   }
 
   switchAuthTab(tab) {
-    document.getElementById("auth-tab-login-btn").classList.toggle("active", tab === "login");
-    document.getElementById("auth-tab-reg-btn").classList.toggle("active", tab === "reg");
-    document.getElementById("auth-login-view").classList.toggle("active", tab === "login");
-    document.getElementById("auth-reg-view").classList.toggle("active", tab === "reg");
+    const loginTabBtn = document.getElementById("auth-tab-login-btn");
+    const regTabBtn = document.getElementById("auth-tab-reg-btn");
+    const loginView = document.getElementById("auth-login-view");
+    const regView = document.getElementById("auth-reg-view");
+
+    if (loginTabBtn) loginTabBtn.classList.toggle("active", tab === "login");
+    if (regTabBtn) regTabBtn.classList.toggle("active", tab === "reg");
+    if (loginView) loginView.classList.toggle("active", tab === "login");
+    if (regView) regView.classList.toggle("active", tab === "reg");
   }
 
   renderSavedAccountsList() {
     const box = document.getElementById("saved-accounts-box");
     const list = document.getElementById("saved-accounts-list");
-    const users = this.accountManager.getUsers();
+    if (!box || !list) return;
 
+    const users = this.accountManager.getUsers();
     if (users.length === 0) {
       box.style.display = "none";
       return;
@@ -892,14 +894,16 @@ class SteamClientApp {
       const item = document.createElement("div");
       item.className = "saved-acc-item";
       item.onclick = () => {
-        document.getElementById("login-username-input").value = u.username;
-        document.getElementById("login-password-input").value = u.password;
+        const uInput = document.getElementById("login-username-input");
+        const pInput = document.getElementById("login-password-input");
+        if (uInput) uInput.value = u.username;
+        if (pInput) pInput.value = u.password;
         this.handleLogin();
       };
       item.innerHTML = `
         <div class="saved-acc-info">
-          <img src="${u.avatar}" class="saved-acc-avatar">
-          <span class="saved-acc-name">${u.displayName} (@${u.username})</span>
+          <img src="${u.avatar || 'assets/avatar_default.svg'}" class="saved-acc-avatar">
+          <span class="saved-acc-name">${u.displayName || u.username} (@${u.username})</span>
         </div>
         <button class="steam-btn steam-btn-secondary" style="padding: 3px 8px; font-size: 11px;">Войти</button>
       `;
@@ -909,54 +913,41 @@ class SteamClientApp {
 
   handleLogin() {
     const errEl = document.getElementById("login-error-msg");
-    const u = document.getElementById("login-username-input").value;
-    const p = document.getElementById("login-password-input").value;
+    const uInput = document.getElementById("login-username-input");
+    const pInput = document.getElementById("login-password-input");
+    const u = uInput ? uInput.value : "";
+    const p = pInput ? pInput.value : "";
 
     try {
       const user = this.accountManager.login(u, p);
-      errEl.style.display = "none";
+      if (errEl) errEl.style.display = "none";
       this.closeAuthModal();
       this.syncCurrentUser();
       this.renderStore();
       this.renderLibrarySidebar();
-      this.showToast(`Добро пожаловать в Steam, ${user.displayName}!`);
-      this.sendToBackend({ action: "update_profile", username: user.displayName });
+      this.showToast(`Добро пожаловать в Steam, ${user.displayName || user.username}!`);
+      this.sendToBackend({ action: "update_profile", username: user.displayName || user.username });
     } catch (e) {
-      errEl.textContent = e.message;
-      errEl.style.display = "block";
+      if (errEl) {
+        errEl.textContent = e.message;
+        errEl.style.display = "block";
+      }
     }
-  }
-
-  handleGuestLogin() {
-    // Quick Demo Login using the first available user or create demo
-    const users = this.accountManager.getUsers();
-    if (users.length > 0) {
-      this.accountManager.setActiveUser(users[0].username);
-    } else {
-      this.accountManager.register("gamer", "123", "GamerPro", "assets/avatars/freeman.svg", 1500);
-    }
-    this.closeAuthModal();
-    this.syncCurrentUser();
-    this.renderStore();
-    this.renderLibrarySidebar();
-    this.showToast("Выполнен быстрый вход в Steam!");
   }
 
   handleRegister() {
     const errEl = document.getElementById("reg-error-msg");
-    const username = document.getElementById("reg-username-input").value;
-    const nickname = document.getElementById("reg-nickname-input").value;
-    const password = document.getElementById("reg-password-input").value;
+    const uInput = document.getElementById("reg-username-input");
+    const nInput = document.getElementById("reg-nickname-input");
+    const pInput = document.getElementById("reg-password-input");
+
+    const username = uInput ? uInput.value : "";
+    const nickname = nInput ? nInput.value : "";
+    const password = pInput ? pInput.value : "";
 
     try {
-      const newUser = this.accountManager.register(
-        username,
-        password,
-        nickname,
-        this.tempRegAvatar,
-        this.tempRegBalance
-      );
-      errEl.style.display = "none";
+      const newUser = this.accountManager.register(username, password, nickname);
+      if (errEl) errEl.style.display = "none";
       this.closeAuthModal();
       this.syncCurrentUser();
       this.renderStore();
@@ -964,9 +955,21 @@ class SteamClientApp {
       this.showToast(`Аккаунт ${newUser.displayName} успешно создан!`);
       this.sendToBackend({ action: "update_profile", username: newUser.displayName });
     } catch (e) {
-      errEl.textContent = e.message;
-      errEl.style.display = "block";
+      if (errEl) {
+        errEl.textContent = e.message;
+        errEl.style.display = "block";
+      }
     }
+  }
+
+  handleLogout() {
+    this.accountManager.logout();
+    this.closeProfileModal();
+    this.syncCurrentUser();
+    this.renderStore();
+    this.renderLibrarySidebar();
+    this.showToast("Вы вышли из своего аккаунта Steam.");
+    this.openAuthModal("login");
   }
 
   // ==========================================================================
@@ -976,87 +979,60 @@ class SteamClientApp {
   openProfileModal() {
     const user = this.accountManager.getActiveUser();
     if (!user) {
-      this.openAuthModal();
+      this.openAuthModal("login");
       return;
     }
 
-    document.getElementById("profile-modal").style.display = "flex";
-    document.getElementById("edit-nickname-input").value = user.displayName;
-    document.getElementById("edit-bio-input").value = user.bio || "";
-    document.getElementById("edit-avatar-img").src = user.avatar;
-    document.getElementById("profile-acc-username").textContent = `@${user.username}`;
-    document.getElementById("profile-games-count").textContent = (user.library || []).length;
-    document.getElementById("profile-wallet-val").textContent = this.formatCurrency(user.wallet);
+    const modal = document.getElementById("profile-modal");
+    if (!modal) return;
 
-    this.tempProfileAvatar = user.avatar;
+    modal.style.display = "flex";
+    const nickInput = document.getElementById("edit-nickname-input");
+    const bioInput = document.getElementById("edit-bio-input");
+    const avatarImg = document.getElementById("edit-avatar-img");
+    const accUser = document.getElementById("profile-acc-username");
+    const gamesCount = document.getElementById("profile-games-count");
+    const regDate = document.getElementById("profile-reg-date");
 
-    // Highlight selected preset avatar
-    document.querySelectorAll("#profile-avatar-presets .preset-avatar-opt").forEach(img => {
-      img.classList.toggle("selected", img.dataset.src === user.avatar);
-    });
+    if (nickInput) nickInput.value = user.displayName || user.username;
+    if (bioInput) bioInput.value = user.bio || "";
+    if (avatarImg) avatarImg.src = user.avatar || "assets/avatar_default.svg";
+    if (accUser) accUser.textContent = `@${user.username}`;
+    if (gamesCount) gamesCount.textContent = (user.library || []).length;
+    if (regDate) regDate.textContent = user.createdAt || "Не указана";
+
+    this.tempProfileAvatar = user.avatar || "assets/avatar_default.svg";
   }
 
   closeProfileModal() {
-    document.getElementById("profile-modal").style.display = "none";
+    const modal = document.getElementById("profile-modal");
+    if (modal) modal.style.display = "none";
   }
 
   saveProfileModal() {
-    const newName = document.getElementById("edit-nickname-input").value.trim();
-    const newBio = document.getElementById("edit-bio-input").value.trim();
+    const nickInput = document.getElementById("edit-nickname-input");
+    const bioInput = document.getElementById("edit-bio-input");
+
+    const newName = nickInput ? nickInput.value.trim() : "";
+    const newBio = bioInput ? bioInput.value.trim() : "";
 
     if (!newName) {
       this.showToast("Имя профиля не может быть пустым!");
       return;
     }
 
+    const avatarToSave = this.tempProfileAvatar || "assets/avatar_default.svg";
+
     this.accountManager.updateProfile({
       displayName: newName,
       bio: newBio,
-      avatar: this.tempProfileAvatar || document.getElementById("edit-avatar-img").src
+      avatar: avatarToSave
     });
 
     this.closeProfileModal();
     this.syncCurrentUser();
     this.showToast("Профиль Steam успешно сохранён!");
     this.sendToBackend({ action: "update_profile", username: newName });
-  }
-
-  // ==========================================================================
-  // WALLET TOPUP MODAL LOGIC
-  // ==========================================================================
-
-  openWalletModal() {
-    const user = this.accountManager.getActiveUser();
-    if (!user) {
-      this.openAuthModal();
-      return;
-    }
-
-    document.getElementById("wallet-modal").style.display = "flex";
-    document.getElementById("modal-current-balance").textContent = this.formatCurrency(user.wallet);
-    document.getElementById("custom-wallet-input").value = "";
-    this.tempWalletTopup = 500;
-
-    document.querySelectorAll(".wallet-chip-opt").forEach(b => {
-      b.classList.toggle("selected", b.dataset.val === "500");
-    });
-  }
-
-  closeWalletModal() {
-    document.getElementById("wallet-modal").style.display = "none";
-  }
-
-  confirmWalletTopup() {
-    const amount = parseFloat(this.tempWalletTopup);
-    if (!amount || amount <= 0) {
-      this.showToast("Введите корректную сумму для пополнения!");
-      return;
-    }
-
-    const newBal = this.accountManager.addWalletFunds(amount);
-    this.closeWalletModal();
-    this.syncCurrentUser();
-    this.showToast(`Баланс успешно пополнен на ${this.formatCurrency(amount)}!`);
   }
 
   // ==========================================================================
@@ -1086,7 +1062,11 @@ class SteamClientApp {
 
   sendToBackend(obj) {
     if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.postMessage(JSON.stringify(obj));
+      try {
+        window.chrome.webview.postMessage(JSON.stringify(obj));
+      } catch (e) {
+        console.error("IPC Send error:", e);
+      }
     }
   }
 
@@ -1120,7 +1100,8 @@ class SteamClientApp {
     else if (msg.event === "game_installed") {
       const g = this.games.find(x => x.id === msg.gameId);
       if (g) g.installed = true;
-      document.getElementById("lib-download-progress").style.display = "none";
+      const progressBox = document.getElementById("lib-download-progress");
+      if (progressBox) progressBox.style.display = "none";
       this.renderLibrarySidebar();
       this.updatePlayButton();
       this.showToast(`Игра «${g ? g.title : ''}» готова к запуску!`);

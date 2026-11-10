@@ -31,7 +31,7 @@ public:
         std::shared_ptr<steam::storage::ILocalStorage> storage,
         std::shared_ptr<steam::downloader::IDownloadManager> downloadManager,
         std::shared_ptr<steam::launcher::IProcessLauncher> processLauncher,
-        steam::core::UserSession session = { 1001, "ØSKARŁØŁPØ⁴²", "token_sec_9948214fa8" }
+        steam::core::UserSession session = {}
     );
     ~SteamMainWindow();
 
