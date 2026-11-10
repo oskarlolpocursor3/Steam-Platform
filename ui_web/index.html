@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Steam • by zmanovskij</title>
+  <title>Steam Client</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="steam-root" class="steam-client">
@@ -25,9 +25,9 @@
           </button>
         </div>
 
-        <!-- Neon Steam Logo -->
-        <div class="brand-logo-container" id="brand-logo-btn" title="Steam by zmanovskij">
-          <img src="assets/logo.png" alt="Steam by zmanovskij" class="steam-neon-logo">
+        <!-- Wide Transparent Steam Logo -->
+        <div class="brand-logo-container" id="brand-logo-btn" title="Steam">
+          <img src="assets/logo.png" alt="Steam" class="steam-neon-logo">
         </div>
 
         <!-- Steam Main Menu Tabs (МАГАЗИН / БИБЛИОТЕКА) -->
@@ -37,29 +37,30 @@
           </button>
           <button class="steam-nav-tab" data-tab="library" id="tab-library">
             БИБЛИОТЕКА
-            <span class="library-badge" id="lib-count-badge">4</span>
+            <span class="library-badge" id="lib-count-badge">0</span>
           </button>
         </nav>
       </div>
 
       <div class="topbar-right">
-        <!-- Steam Wallet Pill -->
-        <div class="steam-wallet-badge" id="wallet-btn" title="Баланс кошелька Steam">
-          <span class="wallet-val" id="wallet-amount">75,31 руб.</span>
+        <!-- Steam Wallet Pill (Кликабельный, открывает пополнение) -->
+        <div class="steam-wallet-badge" id="wallet-btn" title="Пополнить баланс кошелька Steam">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="wallet-icon"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          <span class="wallet-val" id="wallet-amount">0,00 ₽</span>
         </div>
 
         <!-- Notifications Bell -->
         <div class="steam-bell-btn" title="Уведомления">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span class="bell-counter">1</span>
+          <span class="bell-counter" id="bell-counter">1</span>
         </div>
 
-        <!-- Steam User Profile Badge -->
-        <div class="steam-user-profile" id="user-profile-btn" title="Открыть профиль Steam">
-          <div class="avatar-frame online">
-            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" alt="Avatar" id="header-avatar-img">
+        <!-- Steam User Profile Badge (Или кнопка Вход) -->
+        <div class="steam-user-profile" id="user-profile-btn" title="Профиль и аккаунт">
+          <div class="avatar-frame online" id="header-avatar-frame">
+            <img src="assets/avatars/freeman.svg" alt="Avatar" id="header-avatar-img">
           </div>
-          <span class="user-nickname" id="header-nickname">ØSKARŁØŁPØ⁴²</span>
+          <span class="user-nickname" id="header-nickname">Гость</span>
           <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
@@ -75,15 +76,15 @@
         <!-- Store Sub-Header with Search -->
         <div class="store-subbar">
           <div class="store-subbar-links">
-            <span class="sub-link active">Ваш магазин</span>
-            <span class="sub-link">Новинки и примечательное</span>
-            <span class="sub-link">Категории</span>
-            <span class="sub-link">Очки магазина</span>
-            <span class="sub-link">Новости</span>
+            <span class="sub-link active" data-filter="all">Ваш магазин</span>
+            <span class="sub-link" data-filter="fps">Шутеры</span>
+            <span class="sub-link" data-filter="racing">Гонки</span>
+            <span class="sub-link" data-filter="rpg">RPG</span>
+            <span class="sub-link" data-filter="puzzle">Головоломки</span>
           </div>
           <div class="store-search-box">
             <input type="text" id="store-search-input" placeholder="поиск по магазину">
-            <button class="store-search-btn">
+            <button class="store-search-btn" title="Найти">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
           </div>
@@ -91,7 +92,14 @@
 
         <!-- Featured & Recommended Carousel (Фирменная витрина Steam) -->
         <div class="featured-carousel-container">
-          <h2 class="store-section-heading">ПОПУЛЯРНОЕ И РЕКОМЕНДУЕМОЕ</h2>
+          <div class="store-heading-row">
+            <h2 class="store-section-heading">ПОПУЛЯРНОЕ И РЕКОМЕНДУЕМОЕ</h2>
+            <div class="carousel-nav-arrows">
+              <button class="caro-arrow-btn" id="caro-prev-btn" title="Предыдущая игра">‹</button>
+              <div class="caro-dots" id="caro-dots"></div>
+              <button class="caro-arrow-btn" id="caro-next-btn" title="Следующая игра">›</button>
+            </div>
+          </div>
           
           <div class="featured-carousel" id="featured-carousel">
             <!-- Left Large Visual Screen -->
@@ -106,18 +114,15 @@
               
               <!-- 4 Real Mini-screenshots -->
               <div class="carousel-mini-grid" id="carousel-thumbs">
-                <img src="assets/games/cs2/screen1.png" class="thumb-item active" data-src="assets/games/cs2/screen1.png">
-                <img src="assets/games/cs2/screen2.png" class="thumb-item" data-src="assets/games/cs2/screen2.png">
-                <img src="assets/games/cs2/screen3.png" class="thumb-item" data-src="assets/games/cs2/screen3.png">
-                <img src="assets/games/cs2/banner.png" class="thumb-item" data-src="assets/games/cs2/banner.png">
+                <!-- Dynamically populated -->
               </div>
 
               <div class="carousel-summary">
                 <span class="carousel-reason">Уже доступно в облаке GitHub:</span>
-                <p id="carousel-short-desc">Аутентичный тактический 3D FPS на C# (.NET 9) с DDA Raycaster движком, полным обзором камеры, оружием AK-47/Deagle/Нож и ботами на Dust 2.</p>
+                <p id="carousel-short-desc">Аутентичный тактический 3D FPS на C# (.NET 9) с DDA Raycasting, полным обзором камеры, оружием AK-47/Deagle/Нож и ботами на Dust 2.</p>
               </div>
 
-              <div class="carousel-tags">
+              <div class="carousel-tags" id="carousel-tags">
                 <span class="steam-tag">3D FPS</span>
                 <span class="steam-tag">Dust 2</span>
                 <span class="steam-tag">Шутер</span>
@@ -131,7 +136,7 @@
                   <span class="discount-final">БЕСПЛАТНО</span>
                 </div>
                 <button class="steam-btn steam-btn-green" id="carousel-add-btn">
-                  В КОРЗИНУ / В БИБЛИОТЕКУ
+                  В БИБЛИОТЕКУ
                 </button>
               </div>
             </div>
@@ -171,6 +176,12 @@
             <div class="lib-games-list" id="lib-games-list">
               <!-- Injected by app.js -->
             </div>
+
+            <!-- Empty library notice -->
+            <div class="lib-empty-box" id="lib-empty-box" style="display: none;">
+              <p>Ваша библиотека пуста.</p>
+              <button class="steam-btn steam-btn-secondary" id="lib-go-store-btn">Перейти в магазин</button>
+            </div>
           </aside>
 
           <!-- Правая главная страница игры (Game Hub) -->
@@ -189,7 +200,7 @@
               </div>
             </div>
 
-            <!-- Steam Green Play Bar (Фирменная зеленая кнопка) -->
+            <!-- Steam Green Play Bar (Фирменная панель действий) -->
             <div class="steam-action-bar">
               <div class="action-btn-wrapper">
                 <button class="steam-play-btn green" id="main-play-btn">
@@ -198,18 +209,14 @@
                 </button>
               </div>
 
-              <!-- Play Stats -->
+              <!-- Play Stats (Без значков и лишних ачивок) -->
               <div class="hub-stat-item">
                 <span class="stat-label">ПОСЛЕДНИЙ ЗАПУСК</span>
                 <span class="stat-value" id="stat-last-played">Сегодня</span>
               </div>
               <div class="hub-stat-item">
                 <span class="stat-label">ВРЕМЯ В ИГРЕ</span>
-                <span class="stat-value" id="stat-playtime">48.2 ч.</span>
-              </div>
-              <div class="hub-stat-item">
-                <span class="stat-label">ДОСТИЖЕНИЯ</span>
-                <span class="stat-value">18 / 25</span>
+                <span class="stat-value" id="stat-playtime">0.0 ч.</span>
               </div>
               <div class="hub-stat-item">
                 <span class="stat-label">СТАТУС ИГРЫ</span>
@@ -233,7 +240,6 @@
               <button class="hub-tab active">ОБЗОР</button>
               <button class="hub-tab">АКТИВНОСТЬ</button>
               <button class="hub-tab">РУКОВОДСТВА</button>
-              <button class="hub-tab">МАСТЕРСКАЯ</button>
             </div>
 
             <!-- Game Hub Content Body -->
@@ -266,7 +272,7 @@
                   </div>
                   <div class="info-row">
                     <span class="info-k">Издатель:</span>
-                    <span class="info-v">Steam-Platform</span>
+                    <span class="info-v">Steam Platform</span>
                   </div>
                   <div class="info-row">
                     <span class="info-k">Каталог:</span>
@@ -282,7 +288,7 @@
                   <h3 class="hub-card-title">ОСОБЕННОСТИ</h3>
                   <div class="features-list">
                     <div class="feature-item">✔ Одиночная игра</div>
-                    <div class="feature-item">✔ Сетевой мультиплеер (LAN)</div>
+                    <div class="feature-item">✔ Локальный запуск без задержек</div>
                     <div class="feature-item">✔ Полная поддержка клавиатуры и мыши</div>
                     <div class="feature-item">✔ Стабильные 60+ FPS</div>
                   </div>
@@ -296,11 +302,123 @@
 
     </main>
 
-    <!-- 3. USER PROFILE MODAL (Смена ника и аватарки) -->
+    <!-- ============================================== -->
+    <!-- МОДАЛЬНОЕ ОКНО 1: ЛОКАЛЬНАЯ АВТОРИЗАЦИЯ/РЕГИСТРАЦИЯ -->
+    <!-- ============================================== -->
+    <div class="steam-modal-backdrop" id="auth-modal" style="display: none;">
+      <div class="steam-modal steam-auth-modal">
+        <div class="modal-header">
+          <div class="auth-tabs-nav">
+            <button class="auth-tab-btn active" id="auth-tab-login-btn">ВОЙТИ</button>
+            <button class="auth-tab-btn" id="auth-tab-reg-btn">СОЗДАТЬ АККАУНТ</button>
+          </div>
+          <button class="modal-close-btn" id="auth-modal-close">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- ФОРМА ВХОДА -->
+          <div id="auth-login-view" class="auth-view-content active">
+            <p class="auth-subtitle">Войдите, используя имя вашего локального аккаунта Steam</p>
+
+            <div class="form-group">
+              <label class="edit-label">ИМЯ АККАУНТА (ЛОГИН)</label>
+              <input type="text" class="steam-input" id="login-username-input" placeholder="Введите логин" autocomplete="username">
+            </div>
+
+            <div class="form-group">
+              <label class="edit-label">ПАРОЛЬ</label>
+              <input type="password" class="steam-input" id="login-password-input" placeholder="Введите пароль" autocomplete="current-password">
+            </div>
+
+            <div class="auth-remember-row">
+              <label class="steam-checkbox-label">
+                <input type="checkbox" id="login-remember-me" checked>
+                <span>Запомнить меня на этом компьютере</span>
+              </label>
+            </div>
+
+            <div class="auth-error-msg" id="login-error-msg" style="display: none;"></div>
+
+            <!-- Список сохраненных пользователей для быстрого переключения в 1 клик -->
+            <div class="saved-accounts-box" id="saved-accounts-box" style="display: none;">
+              <span class="saved-accounts-label">Сохраненные аккаунты на этом ПК:</span>
+              <div class="saved-accounts-list" id="saved-accounts-list"></div>
+            </div>
+
+            <div class="auth-actions-row">
+              <button class="steam-btn steam-btn-blue auth-submit-btn" id="login-submit-btn">ВОЙТИ В АККАУНТ</button>
+              <button class="steam-btn steam-btn-secondary" id="login-guest-btn">БЫСТРЫЙ ДЕМО-ВХОД</button>
+            </div>
+          </div>
+
+          <!-- ФОРМА РЕГИСТРАЦИИ -->
+          <div id="auth-reg-view" class="auth-view-content">
+            <p class="auth-subtitle">Создайте новый локальный аккаунт с персональной библиотекой</p>
+
+            <div class="form-group">
+              <label class="edit-label">ИМЯ АККАУНТА (ЛОГИН)</label>
+              <input type="text" class="steam-input" id="reg-username-input" placeholder="Например: gamer_2026">
+            </div>
+
+            <div class="form-group">
+              <label class="edit-label">ОТОБРАЖАЕМОЕ ИМЯ (НИКНЕЙМ)</label>
+              <input type="text" class="steam-input" id="reg-nickname-input" placeholder="Ваш ник в профиле">
+            </div>
+
+            <div class="form-group">
+              <label class="edit-label">ПАРОЛЬ</label>
+              <input type="password" class="steam-input" id="reg-password-input" placeholder="Придумайте пароль">
+            </div>
+
+            <!-- Выбор игрового аватара -->
+            <div class="form-group">
+              <label class="edit-label">ВЫБЕРИТЕ ИГРОВОЙ АВАТАР</label>
+              <div class="preset-avatars-row" id="reg-avatar-presets">
+                <img src="assets/avatars/freeman.svg" class="preset-avatar-opt selected" data-src="assets/avatars/freeman.svg" title="Гордон Фримен">
+                <img src="assets/avatars/ct.svg" class="preset-avatar-opt" data-src="assets/avatars/ct.svg" title="Контр-террорист">
+                <img src="assets/avatars/mario.svg" class="preset-avatar-opt" data-src="assets/avatars/mario.svg" title="Марио">
+                <img src="assets/avatars/portal.svg" class="preset-avatar-opt" data-src="assets/avatars/portal.svg" title="Aperture Portals">
+                <img src="assets/avatars/dnd.svg" class="preset-avatar-opt" data-src="assets/avatars/dnd.svg" title="D20 Knight">
+                <img src="assets/avatars/steam.svg" class="preset-avatar-opt" data-src="assets/avatars/steam.svg" title="Steam Valve">
+              </div>
+              
+              <div class="upload-avatar-line">
+                <label class="steam-btn steam-btn-secondary upload-btn-sm">
+                  <span>📁 Загрузить свою картинку</span>
+                  <input type="file" id="reg-avatar-file-input" accept="image/*" style="display: none;">
+                </label>
+                <span class="custom-avatar-status" id="reg-avatar-file-name"></span>
+              </div>
+            </div>
+
+            <!-- Стартовый баланс кошелька -->
+            <div class="form-group">
+              <label class="edit-label">СТАРТОВЫЙ БАЛАНС КОШЕЛЬКА</label>
+              <div class="balance-chips-row">
+                <button type="button" class="balance-chip" data-amount="0">0 ₽</button>
+                <button type="button" class="balance-chip" data-amount="500">500 ₽</button>
+                <button type="button" class="balance-chip selected" data-amount="1000">1 000 ₽</button>
+                <button type="button" class="balance-chip" data-amount="2500">2 500 ₽</button>
+              </div>
+            </div>
+
+            <div class="auth-error-msg" id="reg-error-msg" style="display: none;"></div>
+
+            <div class="auth-actions-row">
+              <button class="steam-btn steam-btn-green auth-submit-btn" id="reg-submit-btn">СОЗДАТЬ БЕСПЛАТНЫЙ АККАУНТ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- МОДАЛЬНОЕ ОКНО 2: ПРОФИЛЬ STEAM                -->
+    <!-- ============================================== -->
     <div class="steam-modal-backdrop" id="profile-modal" style="display: none;">
       <div class="steam-modal">
         <div class="modal-header">
-          <span class="modal-title">РЕДАКТИРОВАНИЕ ПРОФИЛЯ STEAM</span>
+          <span class="modal-title">ПРОФИЛЬ STEAM</span>
           <button class="modal-close-btn" id="profile-modal-close">✕</button>
         </div>
 
@@ -309,49 +427,106 @@
             
             <!-- Avatar Section -->
             <div class="edit-avatar-col">
-              <span class="edit-label">АВАТАР ПРОФИЛЯ</span>
+              <span class="edit-label">АВАТАР</span>
               <div class="avatar-large-preview">
-                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80" id="edit-avatar-img">
+                <img src="assets/avatars/freeman.svg" id="edit-avatar-img" alt="Avatar">
                 <span class="online-indicator">В СЕТИ</span>
               </div>
               
               <!-- Upload Custom Avatar -->
               <label class="steam-btn steam-btn-secondary upload-btn">
-                <span>📁 Загрузить с компьютера</span>
+                <span>📁 Загрузить файл</span>
                 <input type="file" id="avatar-file-input" accept="image/*" style="display: none;">
               </label>
             </div>
 
-            <!-- Nickname & Presets Section -->
+            <!-- Nickname & Details Section -->
             <div class="edit-details-col">
               <div class="form-group">
-                <label class="edit-label">ИМЯ ПРОФИЛЯ (НИКНЕЙМ)</label>
-                <input type="text" class="steam-input" id="edit-nickname-input" value="ØSKARŁØŁPØ⁴²">
+                <label class="edit-label">ОТОБРАЖАЕМОЕ ИМЯ (НИКНЕЙМ)</label>
+                <input type="text" class="steam-input" id="edit-nickname-input" value="Gamer">
               </div>
 
               <div class="form-group">
-                <label class="edit-label">ВЫБЕРИТЕ НЕОНОВЫЙ АВАТАР ИЗ КОЛЛЕКЦИИ</label>
-                <div class="preset-avatars-row">
-                  <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt selected" data-src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80">
-                  <img src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80">
-                  <img src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&auto=format&fit=crop&q=80">
-                  <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80" class="preset-avatar-opt" data-src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80">
+                <label class="edit-label">О СЕБЕ / СТАТУС</label>
+                <input type="text" class="steam-input" id="edit-bio-input" placeholder="Ваш статус...">
+              </div>
+
+              <div class="form-group">
+                <label class="edit-label">ВЫБЕРИТЕ ИГРОВОЙ АВАТАР</label>
+                <div class="preset-avatars-row" id="profile-avatar-presets">
+                  <img src="assets/avatars/freeman.svg" class="preset-avatar-opt" data-src="assets/avatars/freeman.svg">
+                  <img src="assets/avatars/ct.svg" class="preset-avatar-opt" data-src="assets/avatars/ct.svg">
+                  <img src="assets/avatars/mario.svg" class="preset-avatar-opt" data-src="assets/avatars/mario.svg">
+                  <img src="assets/avatars/portal.svg" class="preset-avatar-opt" data-src="assets/avatars/portal.svg">
+                  <img src="assets/avatars/dnd.svg" class="preset-avatar-opt" data-src="assets/avatars/dnd.svg">
+                  <img src="assets/avatars/steam.svg" class="preset-avatar-opt" data-src="assets/avatars/steam.svg">
                 </div>
               </div>
 
+              <!-- Clean Stats Card (Без значков и уровней) -->
               <div class="profile-stats-card">
-                <div class="pstat"><span>Уровень Steam:</span> <strong>42</strong></div>
-                <div class="pstat"><span>Игр на аккаунте:</span> <strong id="profile-games-count">4</strong></div>
-                <div class="pstat"><span>Значки:</span> <strong>12</strong></div>
+                <div class="pstat"><span>Имя аккаунта:</span> <strong id="profile-acc-username">-</strong></div>
+                <div class="pstat"><span>Игр в библиотеке:</span> <strong id="profile-games-count">0</strong></div>
+                <div class="pstat"><span>Баланс:</span> <strong id="profile-wallet-val">0,00 ₽</strong></div>
               </div>
             </div>
 
           </div>
         </div>
 
+        <div class="modal-footer profile-footer-split">
+          <div class="footer-left-actions">
+            <button class="steam-btn steam-btn-secondary" id="profile-topup-btn">💳 Пополнить баланс</button>
+            <button class="steam-btn steam-btn-secondary" id="profile-switch-acc-btn">🔄 Сменить аккаунт</button>
+            <button class="steam-btn steam-btn-danger" id="profile-logout-btn">Выйти</button>
+          </div>
+          <div class="footer-right-actions">
+            <button class="steam-btn steam-btn-secondary" id="profile-modal-cancel">ОТМЕНА</button>
+            <button class="steam-btn steam-btn-green" id="profile-modal-save">СОХРАНИТЬ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- МОДАЛЬНОЕ ОКНО 3: ПОПОЛНЕНИЕ БАЛАНСА           -->
+    <!-- ============================================== -->
+    <div class="steam-modal-backdrop" id="wallet-modal" style="display: none;">
+      <div class="steam-modal wallet-modal-box">
+        <div class="modal-header">
+          <span class="modal-title">ПОПОЛНЕНИЕ КОШЕЛЬКА STEAM</span>
+          <button class="modal-close-btn" id="wallet-modal-close">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="wallet-topup-content">
+            <div class="current-balance-banner">
+              <span class="bal-label">ТЕКУЩИЙ БАЛАНС</span>
+              <span class="bal-number" id="modal-current-balance">0,00 ₽</span>
+            </div>
+
+            <span class="edit-label">ВЫБЕРИТЕ СУММУ ДЛЯ ПОПОЛНЕНИЯ</span>
+            <div class="wallet-options-grid">
+              <button class="wallet-chip-opt" data-val="150">+ 150 ₽</button>
+              <button class="wallet-chip-opt selected" data-val="500">+ 500 ₽</button>
+              <button class="wallet-chip-opt" data-val="1000">+ 1 000 ₽</button>
+              <button class="wallet-chip-opt" data-val="2500">+ 2 500 ₽</button>
+            </div>
+
+            <div class="form-group custom-topup-group">
+              <label class="edit-label">ИЛИ ВВЕДИТЕ ДРУГУЮ СУММУ</label>
+              <div class="currency-input-wrap">
+                <input type="number" class="steam-input" id="custom-wallet-input" placeholder="500" min="10" max="100000">
+                <span class="curr-sign">₽</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="modal-footer">
-          <button class="steam-btn steam-btn-secondary" id="profile-modal-cancel">ОТМЕНА</button>
-          <button class="steam-btn steam-btn-green" id="profile-modal-save">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
+          <button class="steam-btn steam-btn-secondary" id="wallet-modal-cancel">ОТМЕНА</button>
+          <button class="steam-btn steam-btn-green" id="wallet-modal-confirm">ЗАЧИСЛИТЬ НА БАЛАНС</button>
         </div>
       </div>
     </div>

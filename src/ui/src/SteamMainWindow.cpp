@@ -276,7 +276,8 @@ void SteamMainWindow::resizeWebView() {
 }
 
 void SteamMainWindow::initWebView() {
-    std::filesystem::path userDataDir = std::filesystem::temp_directory_path() / "SteamPlatform_WebView2Data";
+    std::filesystem::path appDir = getExeDirectory();
+    std::filesystem::path userDataDir = appDir / "userData" / "WebView2Data";
     std::filesystem::create_directories(userDataDir);
 
     HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
